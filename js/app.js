@@ -1,20 +1,26 @@
 /**
  * Punto de entrada: enlaza la lógica de scoring.js con la interfaz y gobierna
- * la navegación entre las tres vistas (inicio → puntuación → resultado).
+ * la navegación entre vistas.
+ *
+ * Las vistas se manejan como una pila, igual que la navegación push de iOS:
+ *   inicio → puntuación → resultado
+ *   inicio → resultados anteriores → detalle
  */
 
 import * as scoring from './scoring.js';
 import { guardarBatalla, pedirPersistencia } from './storage.js';
+import { crearHistorial } from './history.js';
 
 const NOMBRES_POR_DEFECTO = {
   [scoring.A]: 'Batallero A',
   [scoring.B]: 'Batallero B',
 };
 
-const VISTAS = ['vista-inicio', 'vista-puntuacion', 'vista-final'];
-const INICIO = 0;
-const PUNTUACION = 1;
-const FINAL = 2;
+const RAIZ = 'vista-inicio';
+const PUNTUACION = 'vista-puntuacion';
+
+/** Las vistas que salen de la pila se deslizan por encima de las que revelan. */
+const Z_FUERA_DE_PILA = 99;
 
 const $ = (id) => document.getElementById(id);
 
@@ -22,6 +28,7 @@ const el = {
   formNueva: $('form-nueva'),
   nombreA: $('nombre-a'),
   nombreB: $('nombre-b'),
+  btnHistorial: $('btn-historial'),
 
   btnCancelar: $('btn-cancelar'),
   btnTerminar: $('btn-terminar'),
@@ -32,6 +39,9 @@ const el = {
   btnVolver: $('btn-volver'),
   btnGuardar: $('btn-guardar'),
   avisoGuardar: $('aviso-guardar'),
+
+  btnCerrarHistorial: $('btn-cerrar-historial'),
+  btnCerrarDetalle: $('btn-cerrar-detalle'),
 
   pila: $('pila'),
   velo: $('velo'),
@@ -74,20 +84,72 @@ const finalDe = {
 
 /** Batalla en curso, o null si no hay ninguna. */
 let batalla = null;
-let nivel = INICIO;
 
 // ── Navegación ─────────────────────────────────────────────────────────────
 
-function irA(destino) {
-  nivel = destino;
+let pila = [RAIZ];
+let navegando = false;
+let finDeTransicion = 0;
 
-  VISTAS.forEach((id, i) => {
-    const vista = $(id);
-    vista.classList.toggle('vista--activa', i === destino);
-    vista.classList.toggle('vista--atras', i < destino);
-    vista.inert = i !== destino;
-  });
+function pintarPila({ bloquear = true } = {}) {
+  const cima = pila.length - 1;
+
+  for (const vista of document.querySelectorAll('.vista')) {
+    const i = pila.indexOf(vista.id);
+    const activa = i === cima;
+
+    vista.classList.toggle('vista--activa', activa);
+    vista.classList.toggle('vista--atras', i >= 0 && i < cima);
+    vista.style.zIndex = i >= 0 ? String(i + 1) : String(Z_FUERA_DE_PILA);
+    vista.inert = !activa;
+  }
+
+  if (bloquear) bloquearDuranteLaTransicion();
 }
+
+/**
+ * Mientras una vista se desliza, los botones no están donde se ven. Durante
+ * ese tercio de segundo no aceptamos ni toques ni teclas, para que una
+ * pulsación a destiempo no acabe en el botón equivocado.
+ */
+function bloquearDuranteLaTransicion() {
+  const ms = duracionDeLaTransicion();
+  if (ms < 1) return; // con movimiento reducido no hay nada que esperar
+
+  navegando = true;
+  el.pila.classList.add('pila--navegando');
+
+  clearTimeout(finDeTransicion);
+  finDeTransicion = setTimeout(() => {
+    navegando = false;
+    el.pila.classList.remove('pila--navegando');
+  }, ms);
+}
+
+/** La duración la manda el CSS, que es quien sabe de `prefers-reduced-motion`. */
+function duracionDeLaTransicion() {
+  const vista = document.querySelector('.vista');
+  return parseFloat(getComputedStyle(vista).transitionDuration) * 1000;
+}
+
+function empujar(id) {
+  if (pila.includes(id)) return;
+  pila.push(id);
+  pintarPila();
+}
+
+function sacar() {
+  if (pila.length < 2) return;
+  pila.pop();
+  pintarPila();
+}
+
+function volverAlaRaiz() {
+  pila = [RAIZ];
+  pintarPila();
+}
+
+const enCima = (id) => pila[pila.length - 1] === id;
 
 // ── Nombres ────────────────────────────────────────────────────────────────
 
@@ -180,6 +242,8 @@ function confirmar({ titulo, texto, aceptar, cancelar }) {
   });
 }
 
+const historial = crearHistorial({ empujar, sacar, confirmar });
+
 // ── Acciones ───────────────────────────────────────────────────────────────
 
 function empezarBatalla(evento) {
@@ -188,7 +252,7 @@ function empezarBatalla(evento) {
 
   batalla = scoring.crearBatalla(el.nombreA.value, el.nombreB.value);
   pintarPuntuacion();
-  irA(PUNTUACION);
+  empujar(PUNTUACION);
 }
 
 function anotar(valor) {
@@ -222,13 +286,13 @@ async function cancelar() {
     if (!seguro) return;
   }
 
-  volverAlInicio();
+  soltarBatalla();
 }
 
 function terminar() {
   if (scoring.estaVacia(batalla)) return;
   pintarFinal();
-  irA(FINAL);
+  empujar('vista-final');
 }
 
 async function guardar() {
@@ -245,7 +309,7 @@ async function guardar() {
       totalA: scoring.total(batalla, scoring.A),
       totalB: scoring.total(batalla, scoring.B),
     });
-    volverAlInicio();
+    soltarBatalla();
   } catch (error) {
     console.error('No se ha podido guardar la batalla:', error);
     el.avisoGuardar.textContent =
@@ -254,15 +318,16 @@ async function guardar() {
   }
 }
 
-function volverAlInicio() {
+function soltarBatalla() {
   batalla = null;
   el.formNueva.reset();
-  irA(INICIO);
+  volverAlaRaiz();
 }
 
 // ── Enlaces ────────────────────────────────────────────────────────────────
 
 el.formNueva.addEventListener('submit', empezarBatalla);
+el.btnHistorial.addEventListener('click', () => historial.abrir());
 
 // El campo A anuncia «siguiente» en el teclado de iOS: que lo cumpla.
 el.nombreA.addEventListener('keydown', (evento) => {
@@ -280,13 +345,30 @@ el.teclado.addEventListener('click', (evento) => {
 el.btnBorrar.addEventListener('click', borrar);
 el.btnCancelar.addEventListener('click', cancelar);
 el.btnTerminar.addEventListener('click', terminar);
-el.btnVolver.addEventListener('click', () => irA(PUNTUACION));
+el.btnVolver.addEventListener('click', sacar);
 el.btnGuardar.addEventListener('click', guardar);
+
+el.btnCerrarHistorial.addEventListener('click', sacar);
+el.btnCerrarDetalle.addEventListener('click', sacar);
 
 marcador[scoring.A].caja.addEventListener('click', () => apuntarA(scoring.A));
 marcador[scoring.B].caja.addEventListener('click', () => apuntarA(scoring.B));
 
+/** Teclado físico, para poder puntuar cómodo desde el ordenador. */
+document.addEventListener('keydown', (evento) => {
+  if (navegando || !enCima(PUNTUACION) || !el.velo.hidden) return;
+  if (evento.metaKey || evento.ctrlKey || evento.altKey) return;
+
+  if (evento.key >= '0' && evento.key <= '4') {
+    evento.preventDefault();
+    anotar(Number(evento.key));
+  } else if (evento.key === 'Backspace' || evento.key === 'Delete') {
+    evento.preventDefault();
+    borrar();
+  }
+});
+
 // ── Arranque ───────────────────────────────────────────────────────────────
 
-irA(INICIO);
+pintarPila({ bloquear: false });
 pedirPersistencia();

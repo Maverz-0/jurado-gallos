@@ -132,15 +132,13 @@ button {
   transition: transform var(--transicion-vista) var(--curva);
 }
 
-/* El orden del DOM define el apilado: inicio → puntuación → resultado. */
-#vista-inicio {
-  z-index: 1;
-}
-#vista-puntuacion {
-  z-index: 2;
-}
-#vista-final {
-  z-index: 3;
+/* El z-index lo pone app.js según la profundidad en la pila de navegación:
+   la vista que entra o sale se desliza siempre por encima de la que revela. */
+
+/* Mientras una vista se desliza, sus botones no están donde se ven. Bloquear
+   los toques durante ese tercio de segundo evita pulsaciones a ciegas. */
+.pila--navegando {
+  pointer-events: none;
 }
 
 .vista--activa {
@@ -297,7 +295,8 @@ button {
 
 /* Separador fino que no llega al borde izquierdo. */
 .fila + .fila::before,
-.resultado + .fila::before {
+.resultado + .fila::before,
+.resultado + .resultado::before {
   content: '';
   position: absolute;
   top: 0;
@@ -305,6 +304,34 @@ button {
   right: 0;
   height: 0.5px;
   background: var(--separador);
+}
+
+/* Fila que lleva a otra pantalla: ocupa todo el ancho y remata en chevron. */
+.fila--enlace {
+  width: 100%;
+  border: 0;
+  background: none;
+  text-align: left;
+  transition: background-color var(--transicion-pulsacion) ease-out;
+}
+
+.fila--enlace:active {
+  background: var(--relleno);
+}
+
+.fila__titulo {
+  flex: none;
+}
+
+.fila__titulo--ancho {
+  flex: 1;
+}
+
+.chevron {
+  flex: none;
+  width: 8px;
+  height: 13px;
+  color: var(--texto-terciario);
 }
 
 .fila__etiqueta {
@@ -368,6 +395,11 @@ button {
 .boton--principal {
   background: var(--azul);
   color: #ffffff;
+}
+
+.boton--destructivo {
+  background: var(--superficie);
+  color: var(--rojo);
 }
 
 .boton:active:not(:disabled) {
@@ -535,6 +567,85 @@ button {
   font-weight: 700;
   line-height: 1;
   flex: none;
+}
+
+/* ── Historial ──────────────────────────────────────────────────────────── */
+
+/* Fila de la lista: nombres arriba, fecha debajo, marcador y chevron a la
+   derecha. Reutiliza .fila para heredar altura y separadores. */
+.batalla {
+  gap: var(--e4);
+}
+
+.batalla__quien {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.batalla__nombres {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batalla__fecha {
+  font-size: var(--texto-nota);
+  color: var(--texto-secundario);
+}
+
+.batalla__marcador {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-secundario);
+}
+
+.vacio {
+  padding: var(--e8) var(--e6);
+  text-align: center;
+}
+
+.vacio__titulo {
+  font-size: var(--texto-titulo-seccion);
+  font-weight: 600;
+  margin: 0 0 var(--e2);
+}
+
+.vacio__texto {
+  font-size: var(--texto-cuerpo);
+  color: var(--texto-secundario);
+  margin: 0;
+  max-width: 34ch;
+  margin-inline: auto;
+}
+
+/* Cada nota del detalle, en el orden en que se metió. */
+.paso {
+  gap: var(--e3);
+}
+
+.paso__numero {
+  flex: none;
+  width: 28px;
+  font-size: var(--texto-nota);
+  color: var(--texto-terciario);
+  font-variant-numeric: tabular-nums;
+}
+
+.paso__nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paso__valor {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Alerta de confirmación ─────────────────────────────────────────────── */

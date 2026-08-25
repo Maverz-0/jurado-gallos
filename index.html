@@ -64,6 +64,24 @@
               Empezar batalla
             </button>
           </form>
+
+          <div class="grupo">
+            <div class="tarjeta">
+              <button class="fila fila--enlace" type="button" id="btn-historial">
+                <span class="fila__titulo fila__titulo--ancho">Resultados anteriores</span>
+                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                  <path
+                    d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -189,6 +207,94 @@
           <p class="grupo__pie" id="aviso-guardar" role="status"></p>
         </div>
       </section>
+      <!-- ────────────────── Resultados anteriores ─────────────────── -->
+      <section class="vista" id="vista-historial" aria-label="Resultados anteriores" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="btn-cerrar-historial">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path
+                  d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Inicio
+            </button>
+            <h2 class="barra__titulo barra__titulo--oculto">Resultados anteriores</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+          <h1 class="titulo-grande">Resultados anteriores</h1>
+        </header>
+
+        <div class="vista__cuerpo">
+          <div class="grupo" id="grupo-lista" hidden>
+            <div class="tarjeta" id="lista-batallas"></div>
+          </div>
+
+          <div class="vacio" id="lista-vacia" hidden>
+            <p class="vacio__titulo">Todavía no hay batallas</p>
+            <p class="vacio__texto">
+              Las batallas que guardes se irán quedando aquí. Vuelve al inicio y
+              puntúa la primera.
+            </p>
+          </div>
+
+          <p class="grupo__pie" id="aviso-historial" role="status"></p>
+        </div>
+      </section>
+
+      <!-- ──────────────────── Detalle de batalla ───────────────────- -->
+      <section class="vista" id="vista-detalle" aria-label="Detalle de la batalla" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="btn-cerrar-detalle">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path
+                  d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Resultados
+            </button>
+            <h2 class="barra__titulo">Batalla</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+        </header>
+
+        <div class="vista__cuerpo">
+          <p class="grupo__encabezado" id="detalle-fecha"></p>
+          <div class="grupo">
+            <div class="tarjeta">
+              <div class="resultado">
+                <span class="resultado__nombre" id="detalle-a-nombre"></span>
+                <span class="resultado__total tabular" id="detalle-a-total"></span>
+              </div>
+              <div class="resultado">
+                <span class="resultado__nombre" id="detalle-b-nombre"></span>
+                <span class="resultado__total tabular" id="detalle-b-total"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grupo">
+            <p class="grupo__encabezado">Secuencia</p>
+            <div class="tarjeta" id="detalle-secuencia"></div>
+          </div>
+
+          <button class="boton boton--destructivo" type="button" id="btn-borrar-batalla">
+            Borrar batalla
+          </button>
+          <p class="grupo__pie" id="aviso-detalle" role="status"></p>
+        </div>
+      </section>
     </div>
 
     <!-- ────────────────────── Diálogo de aviso ────────────────────── -->
@@ -214,6 +320,35 @@
         </div>
       </div>
     </div>
+
+    <!-- Plantillas de las filas que se generan desde JavaScript. -->
+    <template id="tpl-batalla">
+      <button class="fila fila--enlace batalla" type="button">
+        <span class="batalla__quien">
+          <span class="batalla__nombres"></span>
+          <span class="batalla__fecha"></span>
+        </span>
+        <span class="batalla__marcador tabular"></span>
+        <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+          <path
+            d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+    </template>
+
+    <template id="tpl-paso">
+      <div class="fila paso">
+        <span class="paso__numero"></span>
+        <span class="paso__nombre"></span>
+        <span class="paso__valor tabular"></span>
+      </div>
+    </template>
 
     <script type="module" src="./js/app.js"></script>
   </body>

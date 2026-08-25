@@ -49,7 +49,11 @@ function abrirDB() {
   return promesaDB;
 }
 
-/** Envuelve una transacción y resuelve cuando termina de escribirse de verdad. */
+/**
+ * Envuelve una transacción y resuelve con el resultado de la solicitud, pero
+ * sólo cuando la transacción ha terminado de verdad: en una escritura, que la
+ * solicitud tenga éxito todavía no garantiza que el dato esté en disco.
+ */
 async function conTransaccion(modo, trabajo) {
   const db = await abrirDB();
 
@@ -57,16 +61,16 @@ async function conTransaccion(modo, trabajo) {
     const transaccion = db.transaction(ALMACEN, modo);
     const almacen = transaccion.objectStore(ALMACEN);
 
-    let resultado;
+    let solicitud;
     try {
-      resultado = trabajo(almacen);
+      solicitud = trabajo(almacen);
     } catch (error) {
       transaccion.abort();
       rechazar(error);
       return;
     }
 
-    transaccion.oncomplete = () => resolver(resultado);
+    transaccion.oncomplete = () => resolver(solicitud?.result);
     transaccion.onerror = () => rechazar(transaccion.error);
     transaccion.onabort = () => rechazar(transaccion.error);
   });
@@ -105,6 +109,41 @@ export async function guardarBatalla({
 
   await conTransaccion('readwrite', (almacen) => almacen.add(registro));
   return registro;
+}
+
+/**
+ * Todas las batallas, de la más reciente a la más antigua. Recorre el índice
+ * por fecha hacia atrás, así que el orden lo pone la base de datos y no hace
+ * falta ordenar nada después.
+ */
+export async function listarBatallas() {
+  const db = await abrirDB();
+
+  return new Promise((resolver, rechazar) => {
+    const transaccion = db.transaction(ALMACEN, 'readonly');
+    const indice = transaccion.objectStore(ALMACEN).index('fecha');
+    const batallas = [];
+
+    indice.openCursor(null, 'prev').onsuccess = (evento) => {
+      const cursor = evento.target.result;
+      if (!cursor) return;
+      batallas.push(cursor.value);
+      cursor.continue();
+    };
+
+    transaccion.oncomplete = () => resolver(batallas);
+    transaccion.onerror = () => rechazar(transaccion.error);
+    transaccion.onabort = () => rechazar(transaccion.error);
+  });
+}
+
+/** Una batalla por su id, o undefined si ya no está. */
+export function obtenerBatalla(id) {
+  return conTransaccion('readonly', (almacen) => almacen.get(id));
+}
+
+export async function borrarBatalla(id) {
+  await conTransaccion('readwrite', (almacen) => almacen.delete(id));
 }
 
 /**
