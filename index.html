@@ -65,10 +65,30 @@
             </button>
           </form>
 
+          <div class="recordatorio" id="aviso-copia" hidden>
+            <p class="recordatorio__texto" id="aviso-copia-texto"></p>
+            <button class="recordatorio__accion" type="button" id="btn-aviso-copia">
+              Hacer copia
+            </button>
+          </div>
+
           <div class="grupo">
             <div class="tarjeta">
               <button class="fila fila--enlace" type="button" id="btn-historial">
                 <span class="fila__titulo fila__titulo--ancho">Resultados anteriores</span>
+                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                  <path
+                    d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <button class="fila fila--enlace" type="button" id="btn-copia">
+                <span class="fila__titulo fila__titulo--ancho">Copia de seguridad</span>
                 <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
                   <path
                     d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19"
@@ -293,6 +313,71 @@
             Borrar batalla
           </button>
           <p class="grupo__pie" id="aviso-detalle" role="status"></p>
+        </div>
+      </section>
+      <!-- ────────────────── Copia de seguridad ─────────────────────- -->
+      <section class="vista" id="vista-copia" aria-label="Copia de seguridad" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="btn-cerrar-copia">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path
+                  d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Inicio
+            </button>
+            <h2 class="barra__titulo barra__titulo--oculto">Copia de seguridad</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+          <h1 class="titulo-grande">Copia de seguridad</h1>
+        </header>
+
+        <div class="vista__cuerpo">
+          <div class="grupo">
+            <p class="grupo__encabezado">Exportar</p>
+            <div class="tarjeta">
+              <button class="fila fila--enlace fila--accion" type="button" id="btn-exportar-json">
+                <span class="fila__titulo fila__titulo--ancho">Exportar copia de seguridad</span>
+              </button>
+              <button class="fila fila--enlace fila--accion" type="button" id="btn-exportar-txt">
+                <span class="fila__titulo fila__titulo--ancho">Exportar como texto</span>
+              </button>
+            </div>
+            <p class="grupo__pie">
+              La copia de seguridad es un <code>.json</code> y es la única que se
+              puede volver a importar. El texto es un <code>.txt</code> para leer
+              o compartir.
+            </p>
+          </div>
+
+          <div class="grupo">
+            <p class="grupo__encabezado">Importar</p>
+            <div class="tarjeta">
+              <!-- El label abre el selector sin JavaScript, que en iOS es lo
+                   que funciona de forma más fiable. -->
+              <label class="fila fila--enlace fila--accion" for="fichero-importar">
+                <span class="fila__titulo fila__titulo--ancho">Importar copia de seguridad</span>
+                <input
+                  class="fuera-de-vista"
+                  type="file"
+                  id="fichero-importar"
+                  accept=".json,application/json"
+                />
+              </label>
+            </div>
+            <p class="grupo__pie">
+              Añade las batallas de un <code>.json</code> exportado antes. Las
+              que ya tengas se descartan, así que no se duplica nada.
+            </p>
+          </div>
+
+          <p class="grupo__pie" id="estado-copia" role="status"></p>
         </div>
       </section>
     </div>

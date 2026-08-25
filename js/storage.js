@@ -147,6 +147,40 @@ export async function borrarBatalla(id) {
 }
 
 /**
+ * Añade batallas venidas de una importación y devuelve cuántas han entrado.
+ *
+ * Se usa `add`, que falla si ya existe una batalla con ese id: ese fallo es
+ * justo la señal de que ya la teníamos. Se marca como tratado con
+ * preventDefault() para que no tire abajo el resto de la transacción.
+ */
+export async function importarBatallas(batallas) {
+  const db = await abrirDB();
+
+  return new Promise((resolver, rechazar) => {
+    const transaccion = db.transaction(ALMACEN, 'readwrite');
+    const almacen = transaccion.objectStore(ALMACEN);
+    let anadidas = 0;
+    let repetidas = 0;
+
+    for (const batalla of batallas) {
+      const solicitud = almacen.add(batalla);
+      solicitud.onsuccess = () => {
+        anadidas += 1;
+      };
+      solicitud.onerror = (evento) => {
+        repetidas += 1;
+        evento.preventDefault();
+        evento.stopPropagation();
+      };
+    }
+
+    transaccion.oncomplete = () => resolver({ anadidas, repetidas });
+    transaccion.onerror = () => rechazar(transaccion.error);
+    transaccion.onabort = () => rechazar(transaccion.error);
+  });
+}
+
+/**
  * Pide al sistema que no purgue estos datos cuando ande justo de espacio.
  * Es una petición, no una garantía: si el navegador la deniega seguimos igual.
  */

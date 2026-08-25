@@ -327,11 +327,32 @@ button {
   flex: 1;
 }
 
+/* Fila que ejecuta una acción en vez de navegar: en azul, como en Ajustes. */
+.fila--accion {
+  color: var(--azul);
+}
+
+.fila--accion:focus-within {
+  outline: 2px solid var(--azul);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
 .chevron {
   flex: none;
   width: 8px;
   height: 13px;
   color: var(--texto-terciario);
+}
+
+/* Fuera de la vista pero no del alcance del teclado: `display: none` haría
+   que el input de fichero dejase de poder enfocarse. */
+.fuera-de-vista {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .fila__etiqueta {
@@ -567,6 +588,51 @@ button {
   font-weight: 700;
   line-height: 1;
   flex: none;
+}
+
+/* ── Recordatorio de copia ──────────────────────────────────────────────── */
+
+/* Avisa, pero no se pone por delante de nada: ni tapa, ni pide que lo cierres. */
+.recordatorio {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  margin-bottom: var(--e6);
+  padding: var(--e3) var(--e4);
+  border-radius: var(--radio-tarjeta);
+  background: var(--relleno);
+}
+
+.recordatorio[hidden] {
+  display: none;
+}
+
+.recordatorio__texto {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--texto-nota);
+  color: var(--texto-secundario);
+  margin: 0;
+}
+
+.recordatorio__accion {
+  flex: none;
+  padding: var(--e1) 0;
+  border: 0;
+  background: none;
+  font-size: var(--texto-nota);
+  font-weight: 600;
+  color: var(--azul);
+  transition: opacity var(--transicion-pulsacion) ease-out;
+}
+
+.recordatorio__accion:active {
+  opacity: 0.35;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
 }
 
 /* ── Historial ──────────────────────────────────────────────────────────── */

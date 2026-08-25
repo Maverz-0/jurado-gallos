@@ -10,6 +10,7 @@
 import * as scoring from './scoring.js';
 import { guardarBatalla, pedirPersistencia } from './storage.js';
 import { crearHistorial } from './history.js';
+import { crearCopia } from './transfer.js';
 
 const NOMBRES_POR_DEFECTO = {
   [scoring.A]: 'Batallero A',
@@ -29,6 +30,8 @@ const el = {
   nombreA: $('nombre-a'),
   nombreB: $('nombre-b'),
   btnHistorial: $('btn-historial'),
+  btnCopia: $('btn-copia'),
+  btnAvisoCopia: $('btn-aviso-copia'),
 
   btnCancelar: $('btn-cancelar'),
   btnTerminar: $('btn-terminar'),
@@ -42,6 +45,7 @@ const el = {
 
   btnCerrarHistorial: $('btn-cerrar-historial'),
   btnCerrarDetalle: $('btn-cerrar-detalle'),
+  btnCerrarCopia: $('btn-cerrar-copia'),
 
   pila: $('pila'),
   velo: $('velo'),
@@ -103,6 +107,10 @@ function pintarPila({ bloquear = true } = {}) {
     vista.style.zIndex = i >= 0 ? String(i + 1) : String(Z_FUERA_DE_PILA);
     vista.inert = !activa;
   }
+
+  // El recordatorio de copia vive en el inicio: se recalcula cada vez que se
+  // vuelve, que es por donde se pasa después de guardar, borrar o importar.
+  if (enCima(RAIZ)) copia.refrescarAviso();
 
   if (bloquear) bloquearDuranteLaTransicion();
 }
@@ -243,6 +251,7 @@ function confirmar({ titulo, texto, aceptar, cancelar }) {
 }
 
 const historial = crearHistorial({ empujar, sacar, confirmar });
+const copia = crearCopia({ empujar });
 
 // ── Acciones ───────────────────────────────────────────────────────────────
 
@@ -350,6 +359,10 @@ el.btnGuardar.addEventListener('click', guardar);
 
 el.btnCerrarHistorial.addEventListener('click', sacar);
 el.btnCerrarDetalle.addEventListener('click', sacar);
+el.btnCerrarCopia.addEventListener('click', sacar);
+
+el.btnCopia.addEventListener('click', () => copia.abrir());
+el.btnAvisoCopia.addEventListener('click', () => copia.abrir());
 
 marcador[scoring.A].caja.addEventListener('click', () => apuntarA(scoring.A));
 marcador[scoring.B].caja.addEventListener('click', () => apuntarA(scoring.B));
