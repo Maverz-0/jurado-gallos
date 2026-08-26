@@ -71,8 +71,11 @@ js/
   storage.js    la única parte que conoce IndexedDB
   history.js    resultados anteriores
   transfer.js   exportar e importar
-  share.js      el acta, en imagen o en texto
+  share.js      el acta y la clasificación, en imagen o en texto
   compat.js     traducción de los esquemas anteriores
+  filters.js    lógica de unos filtros: pura, como scoring.js
+  filters-view.js  sus pantallas: preparar, votar y clasificar
+  dom.js        cuatro utilidades de pintado compartidas
 ```
 
 `scoring.js` no toca el DOM ni lee el reloj: recibe un estado y devuelve otro.
@@ -120,6 +123,38 @@ La **pantalla siempre encendida** usa la Screen Wake Lock API, disponible en
 Safari desde iOS 16.4. Si el navegador no la trae, el interruptor no aparece.
 El sistema suelta el bloqueo al salir de la app, así que se vuelve a pedir al
 regresar.
+
+## Filtros
+
+Un modo aparte, elegido en el inicio. No es una batalla: hay un número
+indefinido de participantes repartidos en grupos, todos hacen las mismas
+intervenciones y al final clasifican los mejores **del conjunto**, no de su
+grupo.
+
+- La nota de cada uno es la **media** de sus intervenciones, redondeada a medios
+  o a enteros (con medios, un 3,4 se queda en 3,5).
+- Se puntúa alternando dentro de un grupo hasta que todos completan sus
+  intervenciones, y sólo entonces se pasa al siguiente.
+- Se puede empezar **sin nadie** y apuntar sobre la marcha. Quien llega tarde va
+  al último grupo incompleto o abre uno nuevo, y también se le puede meter a la
+  fuerza en uno lleno.
+- **Editar** saca los mandos de quitar y arrastrar. Fuera de ese modo no hay
+  nada que tocar sin querer junto a los cuadritos.
+
+### Clasificación
+
+Filas por participante, una columna por jurado y el puesto al final. El puesto
+lo decide siempre la suma de los jurados: el selector Puntuación/Participación
+sólo cambia el orden de las filas. Desempata la media sin redondear y luego el
+orden de llegada.
+
+**Añadir jurado** abre un teclado para meter su nota a cada participante, uno
+detrás de otro; tocar una casilla suya vuelve a ella para corregirla. Con más de
+un jurado aparece la columna de suma.
+
+Cada casilla se colorea según lo que habría pasado contando **sólo a ese
+jurado**: verde si además clasifica de verdad, ámbar si no. Es lo que enseña
+dónde discrepan los jurados.
 
 ## Compartir
 

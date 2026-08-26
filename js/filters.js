@@ -342,6 +342,37 @@ export function notaDe(filtros, idJurado, idParticipante) {
   return suya === undefined ? null : suya;
 }
 
+export function anadirJurado(filtros, { id, nombre }) {
+  return {
+    ...filtros,
+    jurados: [...filtros.jurados, { id, nombre: (nombre ?? '').trim(), propio: false }],
+    notasExtra: { ...filtros.notasExtra, [id]: {} },
+  };
+}
+
+/** Un jurado añadido pone una nota por participante, no por intervención. */
+export function ponerNotaDeJurado(filtros, idJurado, idParticipante, valor) {
+  const jurado = filtros.jurados.find((j) => j.id === idJurado);
+  if (!jurado || jurado.propio) return filtros;
+  if (!esNotaValida(valor, filtros)) return filtros;
+  if (!participanteDe(filtros, idParticipante)) return filtros;
+
+  return {
+    ...filtros,
+    notasExtra: {
+      ...filtros.notasExtra,
+      [idJurado]: { ...filtros.notasExtra[idJurado], [idParticipante]: valor },
+    },
+  };
+}
+
+/** A quién le falta todavía la nota de este jurado, en orden de participación. */
+export function sinNotaDe(filtros, idJurado) {
+  return filtros.participantes.filter(
+    (participante) => notaDe(filtros, idJurado, participante.id) === null
+  );
+}
+
 /** La suma de lo que le ha puesto cada jurado. */
 export function totalDe(filtros, idParticipante) {
   return filtros.jurados.reduce(

@@ -241,6 +241,31 @@ function redondeado(pincel, x, y, ancho, alto, radio) {
   pincel.closePath();
 }
 
+/**
+ * Parte un texto en líneas que quepan. Se mide con un lienzo aparte para poder
+ * calcular el alto del acta antes de empezar a dibujarla.
+ */
+function partir(texto, ancho, tamano) {
+  const regla = document.createElement('canvas').getContext('2d');
+  regla.font = `400 ${tamano}px ${FUENTE}`;
+
+  const lineas = [];
+  let actual = '';
+
+  for (const palabra of texto.split(' ')) {
+    const probada = actual ? `${actual} ${palabra}` : palabra;
+    if (actual && regla.measureText(probada).width > ancho) {
+      lineas.push(actual);
+      actual = palabra;
+    } else {
+      actual = probada;
+    }
+  }
+
+  if (actual) lineas.push(actual);
+  return lineas;
+}
+
 /** Un nombre largo se corta con puntos suspensivos en vez de salirse. */
 function recortarTexto(pincel, texto, x, y, ancho) {
   let salida = texto;
@@ -251,6 +276,191 @@ function recortarTexto(pincel, texto, x, y, ancho) {
     salida += '…';
   }
   pincel.fillText(salida, x, y);
+}
+
+// ── Clasificación de unos filtros ──────────────────────────────────────────
+
+const VERDE = '#34c759';
+const ANCHO_PUESTO = 56;
+
+/**
+ * El acta de unos filtros es una tabla, no una lista de tramos, así que se
+ * dibuja aparte. Lleva su leyenda: hasta dónde llegaban las notas y qué
+ * significa cada color, que si no la imagen suelta no se entiende.
+ */
+export function dibujarClasificacion(acta) {
+  const columnas = acta.jurados.length + (acta.conTotal ? 1 : 0);
+  const anchoCelda = 96;
+  const ancho = Math.max(
+    ANCHO_MINIMO,
+    MARGEN * 2 + ANCHO_NOMBRE + columnas * anchoCelda + ANCHO_PUESTO
+  );
+
+  const altoCabecera = 150;
+  const altoTabla = 52 + acta.filas.length * 56;
+  // La escala puede ocupar varias líneas, así que hay que medirla antes.
+  const lineasEscala = partir(acta.escala, ancho - MARGEN * 2, 19);
+  const altoLeyenda = 60 + lineasEscala.length * 26 + acta.colores.length * 28 + 50;
+  const alto = altoCabecera + altoTabla + altoLeyenda;
+
+  const lienzo = document.createElement('canvas');
+  lienzo.width = ancho * NITIDEZ;
+  lienzo.height = alto * NITIDEZ;
+
+  const pincel = lienzo.getContext('2d');
+  pincel.scale(NITIDEZ, NITIDEZ);
+  pincel.textBaseline = 'middle';
+  pincel.fillStyle = PAPEL;
+  pincel.fillRect(0, 0, ancho, alto);
+
+  let y = MARGEN + 20;
+  pincel.fillStyle = TINTA;
+  pincel.font = `700 38px ${FUENTE}`;
+  pincel.fillText('Clasificación', MARGEN, y);
+
+  y += 40;
+  pincel.fillStyle = TENUE;
+  pincel.font = `400 21px ${FUENTE}`;
+  pincel.fillText(
+    `${FECHA.format(new Date(acta.fecha))}  ·  pasan ${acta.clasifican} de ${acta.filas.length}`,
+    MARGEN,
+    y
+  );
+
+  y += 40;
+  const xDe = (i) => MARGEN + ANCHO_NOMBRE + i * anchoCelda;
+
+  // Cabecera
+  pincel.fillStyle = TENUE;
+  pincel.font = `600 16px ${FUENTE}`;
+  pincel.fillText('PARTICIPANTE', MARGEN, y);
+  pincel.textAlign = 'center';
+  acta.jurados.forEach((jurado, i) => {
+    recortarTexto(pincel, jurado.nombre.toUpperCase(), xDe(i) + anchoCelda / 2, y, anchoCelda - 8);
+  });
+  if (acta.conTotal) {
+    pincel.fillText('TOTAL', xDe(acta.jurados.length) + anchoCelda / 2, y);
+  }
+  pincel.fillText('#', xDe(columnas) + ANCHO_PUESTO / 2, y);
+  pincel.textAlign = 'left';
+
+  y += 22;
+  linea(pincel, MARGEN, y, ancho - MARGEN);
+  y += 10;
+
+  for (const fila of acta.filas) {
+    const centro = y + 28;
+
+    pincel.fillStyle = TINTA;
+    pincel.font = `400 23px ${FUENTE}`;
+    recortarTexto(pincel, fila.nombre, MARGEN, centro, ANCHO_NOMBRE - 16);
+
+    pincel.textAlign = 'center';
+    fila.notas.forEach((nota, i) => {
+      const x = xDe(i);
+      if (nota.verde || nota.ambar) {
+        pincel.fillStyle = nota.verde ? VERDE : NARANJA;
+        pincel.globalAlpha = 0.2;
+        redondeado(pincel, x + 14, y + 6, anchoCelda - 28, 44, 9);
+        pincel.fill();
+        pincel.globalAlpha = 1;
+      }
+      pincel.fillStyle = nota.verde ? VERDE : nota.ambar ? NARANJA : TINTA;
+      pincel.font = `600 23px ${FUENTE}`;
+      pincel.fillText(nota.texto, x + anchoCelda / 2, centro);
+    });
+
+    if (acta.conTotal) {
+      pincel.fillStyle = TINTA;
+      pincel.font = `700 23px ${FUENTE}`;
+      pincel.fillText(fila.total, xDe(acta.jurados.length) + anchoCelda / 2, centro);
+    }
+
+    pincel.fillStyle = fila.clasifica ? VERDE : TENUE;
+    pincel.font = `700 23px ${FUENTE}`;
+    pincel.fillText(fila.posicion, xDe(columnas) + ANCHO_PUESTO / 2, centro);
+    pincel.textAlign = 'left';
+
+    y += 56;
+    pincel.strokeStyle = '#ededf0';
+    pincel.beginPath();
+    pincel.moveTo(MARGEN, y);
+    pincel.lineTo(ancho - MARGEN, y);
+    pincel.stroke();
+  }
+
+  // Leyenda
+  y += 30;
+  pincel.fillStyle = TENUE;
+  pincel.font = `400 19px ${FUENTE}`;
+  for (const linea of lineasEscala) {
+    pincel.fillText(linea, MARGEN, y);
+    y += 26;
+  }
+
+  y += 10;
+  for (const { color, texto } of acta.colores) {
+    pincel.fillStyle = color === 'verde' ? VERDE : NARANJA;
+    pincel.globalAlpha = 0.3;
+    redondeado(pincel, MARGEN, y - 9, 18, 18, 5);
+    pincel.fill();
+    pincel.globalAlpha = 1;
+
+    pincel.fillStyle = TENUE;
+    pincel.fillText(texto, MARGEN + 28, y);
+    y += 28;
+  }
+
+  pincel.fillText('Jurado de gallos', MARGEN, alto - MARGEN);
+  return lienzo;
+}
+
+export function clasificacionComoTexto(acta) {
+  const lineas = [
+    'CLASIFICACIÓN',
+    `${FECHA.format(new Date(acta.fecha))}  ·  pasan ${acta.clasifican} de ${acta.filas.length}`,
+    '',
+  ];
+
+  for (const fila of acta.filas) {
+    const notas = fila.notas
+      .map((nota, i) => `${acta.jurados[i].nombre}: ${nota.texto}`)
+      .join('  ');
+    lineas.push(
+      `${fila.posicion}${fila.clasifica ? '*' : ' '} ${fila.nombre}  —  ${notas}` +
+        (acta.conTotal ? `  ·  total ${fila.total}` : '')
+    );
+  }
+
+  lineas.push('', '* clasifica', acta.escala);
+  return `${lineas.join('\n')}\n`;
+}
+
+export async function compartirClasificacionImagen(acta) {
+  const lienzo = dibujarClasificacion(acta);
+  const blob = await new Promise((r) => lienzo.toBlob(r, 'image/png'));
+  if (!blob) throw new Error('No se ha podido generar la imagen.');
+
+  const fichero = new File([blob], `clasificacion-${diaDe(acta.fecha)}.png`, {
+    type: 'image/png',
+  });
+  return entregar({ files: [fichero] }, blob, fichero.name);
+}
+
+export async function compartirClasificacionTexto(acta) {
+  const texto = clasificacionComoTexto(acta);
+  const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+  return entregar({ text: texto }, blob, `clasificacion-${diaDe(acta.fecha)}.txt`);
+}
+
+function diaDe(iso) {
+  const fecha = new Date(iso);
+  const dosCifras = (n) => String(n).padStart(2, '0');
+  return [
+    fecha.getFullYear(),
+    dosCifras(fecha.getMonth() + 1),
+    dosCifras(fecha.getDate()),
+  ].join('-');
 }
 
 // ── Texto ──────────────────────────────────────────────────────────────────

@@ -908,7 +908,13 @@ function pedirModalidad({ titulo, aceptar }) {
 
 const historial = crearHistorial({ empujar, sacar, confirmar });
 const copia = crearCopia({ empujar });
-const vistaFiltros = crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar });
+const vistaFiltros = crearVistaFiltros({
+  empujar,
+  sacar,
+  volverAlaRaiz,
+  confirmar,
+  compartir,
+});
 
 // ── Batalla o filtros ──────────────────────────────────────────────────────
 
@@ -1173,7 +1179,10 @@ function actaDeLaBatalla() {
   };
 }
 
-async function compartir(acta) {
+async function compartir(
+  acta,
+  como = { imagen: compartirImagen, texto: compartirTexto }
+) {
   const focoPrevio = document.activeElement;
   el.compartirAviso.textContent = '';
   el.pila.inert = true;
@@ -1213,8 +1222,8 @@ async function compartir(acta) {
     cerrar();
   };
 
-  const conImagen = () => entregar(compartirImagen);
-  const conTexto = () => entregar(compartirTexto);
+  const conImagen = () => entregar(como.imagen);
+  const conTexto = () => entregar(como.texto);
   const alTeclear = (evento) => {
     if (evento.key === 'Escape') cerrar();
   };

@@ -7,6 +7,10 @@
 
 import * as filtros from './filters.js';
 import { $, clonar, ajustarHijos, poner } from './dom.js';
+import {
+  compartirClasificacionImagen,
+  compartirClasificacionTexto,
+} from './share.js';
 
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -20,7 +24,13 @@ const REPARTO = [
   { hasta: 12, columnas: 4, cifra: 'clamp(18px, 5vw, 24px)' },
 ];
 
-export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) {
+export function crearVistaFiltros({
+  empujar,
+  sacar,
+  volverAlaRaiz,
+  confirmar,
+  compartir,
+}) {
   const el = {
     form: $('form-filtros'),
     lista: $('lista-aspirantes'),
@@ -67,6 +77,14 @@ export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) 
 
     orden: $('orden'),
     corte: $('corte'),
+    leyenda: $('leyenda'),
+    btnJurado: $('cbtn-jurado'),
+    btnCompartir: $('cbtn-compartir'),
+    ctecla: $('cteclado'),
+    ctecladoRejilla: $('cteclado-rejilla'),
+    cturno: $('cturno'),
+    btnSalir: $('cbtn-salir'),
+    aspiranteAntes: $('aspirante-antes'),
     tablaNombres: $('tabla-nombres'),
     tablaCuerpo: $('tabla-cuerpo'),
     tablaCabecera: $('tabla-cabecera'),
@@ -103,6 +121,9 @@ export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) 
   let contador = 0;
   let ultimoGrupoVisto = null;
   let orden = 'puntuacion';
+
+  /** Mientras se rellenan las notas de un jurado: { jurado, participante }. */
+  let apuntando = null;
 
   const nuevoId = () => `p${(contador += 1)}`;
 
@@ -427,6 +448,12 @@ export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) 
         poner(celda, nota === null ? '—' : filtros.comoSeEscribe(nota));
         celda.classList.toggle('celda--verde', habriaPasado && fila.clasifica);
         celda.classList.toggle('celda--ambar', habriaPasado && !fila.clasifica);
+        // Se decide aquí y no aparte, para que al salir del modo se limpie sola.
+        celda.classList.toggle(
+          'celda--apuntando',
+          apuntando?.jurado === jurado.id &&
+            apuntando?.participante === fila.participante.id
+        );
       });
 
       if (conTotal) {
@@ -439,7 +466,98 @@ export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) 
       puesto.className = 'celda tabular celda--puesto';
       puesto.classList.toggle('celda--pasa', fila.clasifica);
       poner(puesto, fila.posicion);
+
+      el.tablaNombres.children[i + 1].classList.toggle(
+        'tabla__nombre--apuntando',
+        apuntando?.participante === fila.participante.id
+      );
     });
+
+    pintarLeyenda(conTotal);
+    pintarTecladoDeJurado();
+  }
+
+  function pintarLeyenda(conTotal) {
+    const marca = (clase, texto) =>
+      `<span class="leyenda__marca leyenda__marca--${clase}"></span> ${texto}`;
+
+    el.leyenda.innerHTML = [
+      `Notas de 0 a ${ahora.notaMaxima}; la de cada uno es la media de sus ${ahora.intervenciones} intervenciones, redondeada a ${ahora.redondeo === 'medios' ? 'medios' : 'enteros'}.`,
+      marca('verde', 'habría clasificado con ese jurado, y clasifica.'),
+      marca('ambar', `habría clasificado con ese jurado, pero no ${conTotal ? 'en la suma' : 'al final'}.`),
+    ].join('<br>');
+  }
+
+  // ── Notas de un jurado añadido ───────────────────────────────────────────
+
+  function pintarTecladoDeJurado() {
+    el.ctecla.hidden = !apuntando;
+    if (!apuntando) return;
+
+    const jurado = ahora.jurados.find((j) => j.id === apuntando.jurado);
+    const i = ahora.participantes.findIndex((p) => p.id === apuntando.participante);
+    const quien = i < 0 ? '' : comoSeLlama(ahora.participantes[i], i);
+    poner(el.cturno, `${jurado?.nombre ?? ''}: nota para ${quien}`);
+  }
+
+  function montarTecladoDeJurado() {
+    const teclas = Array.from({ length: ahora.notaMaxima + 1 }, (_, n) => {
+      const tecla = clonar(el.tplTecla);
+      tecla.dataset.nota = String(n);
+      tecla.textContent = n;
+      return tecla;
+    });
+
+    el.ctecladoRejilla.replaceChildren(...teclas, el.btnSalir);
+
+    const cuantas = teclas.length + 1;
+    const porFila = cuantas <= 6 ? 3 : 4;
+    const sobra = cuantas % porFila;
+    el.btnSalir.style.gridColumn = sobra === 0 ? '' : `span ${porFila - sobra + 1}`;
+    el.ctecla.style.setProperty('--teclas-por-fila', porFila);
+    el.ctecla.style.setProperty(
+      '--alto-tecla',
+      `${Math.ceil(cuantas / porFila) <= 2 ? 62 : 52}px`
+    );
+  }
+
+  async function anadirJurado() {
+    const nombre = await nombreSuelto({
+      titulo: 'Añadir jurado',
+      antes: 'Le meterás su nota para cada participante, uno detrás de otro.',
+      marcador: `Jurado ${ahora.jurados.length + 1}`,
+    });
+    if (nombre === null) return;
+
+    const id = `j${ahora.jurados.length + 1}`;
+    ahora = filtros.anadirJurado(ahora, {
+      id,
+      nombre: nombre.trim() || `Jurado ${ahora.jurados.length + 1}`,
+    });
+
+    montarTecladoDeJurado();
+    apuntando = { jurado: id, participante: ahora.participantes[0]?.id ?? null };
+    if (!apuntando.participante) apuntando = null;
+    pintarTabla();
+  }
+
+  function anotarDeJurado(valor) {
+    if (!apuntando) return;
+
+    ahora = filtros.ponerNotaDeJurado(
+      ahora,
+      apuntando.jurado,
+      apuntando.participante,
+      valor
+    );
+
+    // Al siguiente que le falte, y si no queda nadie se sale del modo.
+    const pendientes = filtros.sinNotaDe(ahora, apuntando.jurado);
+    apuntando = pendientes.length
+      ? { jurado: apuntando.jurado, participante: pendientes[0].id }
+      : null;
+
+    pintarTabla();
   }
 
   // ── Acciones ─────────────────────────────────────────────────────────────
@@ -684,17 +802,29 @@ export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) 
     pintarPreparacion();
   });
 
-  /** En el inicio no hay grupos todavía: sólo hace falta el nombre. */
-  function nombreSuelto() {
+  /** Sólo un nombre: para el inicio, donde aún no hay grupos, y para jurados. */
+  function nombreSuelto({
+    titulo = 'Añadir participante',
+    nota = 'Se repartirán en grupos por orden.',
+    antes = '',
+    marcador = 'Nombre',
+  } = {}) {
     return new Promise((resolver) => {
       const focoPrevio = document.activeElement;
+      el.aspiranteTitulo.textContent = titulo;
       el.aspiranteFilaGrupo.hidden = true;
-      el.aspiranteNota.textContent = 'Se repartirán en grupos por orden.';
+      el.aspiranteNota.textContent = nota;
+      el.aspiranteAntes.textContent = antes;
+      el.aspiranteAntes.hidden = !antes;
+      el.aspiranteNombre.placeholder = marcador;
 
       const cerrar = (respuesta) => {
         el.velo.hidden = true;
         el.pila.inert = false;
         el.aspiranteFilaGrupo.hidden = false;
+        el.aspiranteAntes.hidden = true;
+        el.aspiranteTitulo.textContent = 'Añadir participante';
+        el.aspiranteNombre.placeholder = 'Nombre';
         el.aspiranteAceptar.removeEventListener('click', alAceptar);
         el.aspiranteCancelar.removeEventListener('click', alCancelar);
         el.aspiranteNombre.removeEventListener('keydown', alTeclearNombre);
@@ -752,6 +882,80 @@ export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) 
     const opcion = evento.target.closest('[data-orden]');
     if (!opcion) return;
     orden = opcion.dataset.orden;
+    pintarTabla();
+  });
+
+  el.btnJurado.addEventListener('click', anadirJurado);
+
+  el.btnCompartir.addEventListener('click', () => {
+    compartir(actaDeLaClasificacion(), {
+      imagen: compartirClasificacionImagen,
+      texto: compartirClasificacionTexto,
+    });
+  });
+
+  /** Lo que se comparte: la tabla ya resuelta, con sus colores y su leyenda. */
+  function actaDeLaClasificacion() {
+    const filas = filtros.clasificacion(ahora, { orden });
+    const conTotal = ahora.jurados.length > 1;
+    const segunCadaUno = new Map(
+      ahora.jurados.map((j) => [j.id, filtros.clasificariaSegun(ahora, j.id)])
+    );
+
+    return {
+      fecha: new Date().toISOString(),
+      clasifican: ahora.clasifican,
+      conTotal,
+      jurados: ahora.jurados.map((jurado) => ({ id: jurado.id, nombre: jurado.nombre })),
+      escala: `Notas de 0 a ${ahora.notaMaxima}. La de cada uno es la media de sus ${ahora.intervenciones} intervenciones, redondeada a ${ahora.redondeo === 'medios' ? 'medios puntos' : 'enteros'}.`,
+      colores: [
+        { color: 'verde', texto: 'Habría clasificado con ese jurado, y clasifica.' },
+        {
+          color: 'ambar',
+          texto: `Habría clasificado con ese jurado, pero no ${conTotal ? 'en la suma' : 'al final'}.`,
+        },
+      ],
+      filas: filas.map((fila) => {
+        const donde = ahora.participantes.findIndex((p) => p.id === fila.participante.id);
+        return {
+          nombre: comoSeLlama(fila.participante, donde),
+          posicion: String(fila.posicion),
+          clasifica: fila.clasifica,
+          total: filtros.comoSeEscribe(fila.total),
+          notas: ahora.jurados.map((jurado) => {
+            const nota = filtros.notaDe(ahora, jurado.id, fila.participante.id);
+            const habria = segunCadaUno.get(jurado.id).has(fila.participante.id);
+            return {
+              texto: nota === null ? '—' : filtros.comoSeEscribe(nota),
+              verde: habria && fila.clasifica,
+              ambar: habria && !fila.clasifica,
+            };
+          }),
+        };
+      }),
+    };
+  }
+
+  el.ctecladoRejilla.addEventListener('click', (evento) => {
+    const tecla = evento.target.closest('[data-nota]');
+    if (tecla) anotarDeJurado(Number(tecla.dataset.nota));
+  });
+
+  el.btnSalir.addEventListener('click', () => {
+    apuntando = null;
+    pintarTabla();
+  });
+
+  // Tocar la casilla de un jurado añadido la pone en cola para corregirla.
+  el.tablaCuerpo.addEventListener('click', (evento) => {
+    const celda = evento.target.closest('[data-jurado]');
+    if (!celda) return;
+
+    const jurado = ahora.jurados.find((j) => j.id === celda.dataset.jurado);
+    if (!jurado || jurado.propio) return;
+
+    montarTecladoDeJurado();
+    apuntando = { jurado: jurado.id, participante: celda.dataset.participante };
     pintarTabla();
   });
   el.btnAnadir.addEventListener('click', pedirAspirante);

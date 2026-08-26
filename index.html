@@ -447,11 +447,34 @@
             <div class="tabla__nombres" id="tabla-nombres">
               <span class="tabla__titulo">Participante</span>
             </div>
-            <div class="tabla__carril">
+            <div class="tabla__carril" id="tabla-carril">
               <div class="tabla__cuerpo" id="tabla-cuerpo">
                 <div class="tabla__cabecera" id="tabla-cabecera"></div>
               </div>
             </div>
+          </div>
+
+          <p class="leyenda" id="leyenda"></p>
+
+          <div class="anadidos">
+            <button class="anadidos__accion" type="button" id="cbtn-jurado">
+              Añadir jurado
+            </button>
+            <button class="anadidos__accion" type="button" id="cbtn-compartir">
+              Compartir
+            </button>
+          </div>
+        </div>
+
+        <!-- Sólo sale mientras se meten las notas de un jurado añadido. -->
+        <div class="teclado" id="cteclado" hidden>
+          <p class="turno" id="cturno" aria-live="polite"></p>
+          <div class="teclado__rejilla" id="cteclado-rejilla">
+            <button class="tecla tecla--borrar" type="button" id="cbtn-salir" aria-label="Dejar de meter notas">
+              <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+                <path d="M5 5l12 12M17 5 5 17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+              </svg>
+            </button>
           </div>
         </div>
       </section>
@@ -651,6 +674,7 @@
         aria-labelledby="aspirante-titulo"
       >
         <h2 class="hoja__titulo" id="aspirante-titulo">Añadir participante</h2>
+        <p class="hoja__nota hoja__nota--corta" id="aspirante-antes" hidden></p>
 
         <div class="tarjeta">
           <div class="fila">
