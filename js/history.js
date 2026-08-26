@@ -7,6 +7,7 @@
  */
 
 import { listarBatallas, obtenerBatalla, borrarBatalla } from './storage.js';
+import { comoSeEscribe } from './scoring.js';
 
 const EN_LISTA = new Intl.DateTimeFormat('es-ES', {
   day: 'numeric',
@@ -88,7 +89,7 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
       EN_LISTA
     );
     fila.querySelector('.batalla__marcador').textContent = batalla.batalleros
-      .map((batallero) => batallero.total)
+      .map((batallero) => comoSeEscribe(batallero.total))
       .join(' · ');
 
     return fila;
@@ -125,8 +126,8 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
         const linea = el.tplResultado.content.firstElementChild.cloneNode(true);
         linea.querySelector('.resultado__nombre').textContent = batallero.nombre;
         linea.querySelector('.resultado__total').textContent = batallero.replica
-          ? `${batallero.total} + ${batallero.replica}`
-          : batallero.total;
+          ? `${comoSeEscribe(batallero.total)} + ${comoSeEscribe(batallero.replica)}`
+          : comoSeEscribe(batallero.total);
         return linea;
       })
     );
@@ -148,7 +149,9 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
         paso.querySelector('.paso__numero').textContent = `${i + 1}`;
         paso.querySelector('.paso__nombre').textContent =
           variosTramos && donde ? `${quien} · ${donde}` : quien;
-        paso.querySelector('.paso__valor').textContent = puntuacion.valor;
+        paso.querySelector('.paso__valor').textContent = comoSeEscribe(
+          puntuacion.valor
+        );
         return paso;
       })
     );
@@ -193,7 +196,7 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
 
   el.btnBorrar.addEventListener('click', borrar);
 
-  return { abrir };
+  return { abrir, laQueEstaAbierta: () => abierta };
 }
 
 /** «4×4» para un N×N, y el nombre de la modalidad para el resto. */

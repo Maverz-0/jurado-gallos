@@ -18,6 +18,8 @@
 
   --azul: #007aff;
   --rojo: #ff3b30;
+  --naranja: #ff9500;
+  --verde: #34c759;
   --velo: rgba(0, 0, 0, 0.4);
   --alerta-fondo: rgba(250, 250, 250, 0.82);
 
@@ -69,6 +71,8 @@
 
     --azul: #0a84ff;
     --rojo: #ff453a;
+    --naranja: #ff9f0a;
+    --verde: #30d158;
     --velo: rgba(0, 0, 0, 0.55);
     --alerta-fondo: rgba(40, 40, 42, 0.82);
   }
@@ -165,17 +169,14 @@ button {
   padding-bottom: max(var(--e8), env(safe-area-inset-bottom));
 }
 
-/* En el móvil apenas sobra sitio; en una ventana de escritorio centramos los
-   marcadores para que no quede un hueco enorme sobre el teclado. */
+/* El scroll no lo lleva el cuerpo entero, sino sólo la lista de tramos: los
+   totales tienen que quedarse a la vista mientras se desliza por ella. */
 .vista__cuerpo--puntuacion {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  /* `safe` evita que, en una batalla muy larga, el centrado corte las notas
-     por arriba y las deje fuera del alcance del scroll. */
-  justify-content: safe center;
   gap: var(--e3);
-  padding-bottom: var(--e3);
+  overflow: hidden;
+  padding-bottom: var(--e2);
 }
 
 /* ── Barra de navegación ────────────────────────────────────────────────── */
@@ -616,6 +617,45 @@ button {
   font-weight: 600;
 }
 
+/* Interruptor del sistema. */
+.interruptor {
+  position: relative;
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--relleno);
+  transition: background-color 200ms ease-out;
+}
+
+.interruptor::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  transition: transform 200ms var(--curva);
+}
+
+.interruptor:checked {
+  background: var(--verde);
+}
+
+.interruptor:checked::after {
+  transform: translateX(20px);
+}
+
+.boton--separado {
+  margin-top: var(--e3);
+}
+
 /* Botonera de añadir tramo o réplica, al pie de la pista. */
 .anadidos {
   display: flex;
@@ -792,23 +832,44 @@ button {
 
 /* ── Pista de intervenciones ────────────────────────────────────────────── */
 
+/* Los totales se quedan quietos y sólo se desliza la lista de tramos: al
+   mirar una modalidad de más abajo sigues viendo cómo va la batalla. */
+.fijo {
+  flex: none;
+}
+
+.desplazable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
 .bloques {
   display: flex;
   flex-direction: column;
   gap: var(--e4);
 }
 
+/* El nombre de la modalidad va en pastilla de color, para que no se confunda
+   con los nombres de los gallos ni con el resto del texto. */
 .bloque__titulo {
+  display: inline-block;
+  padding: 3px var(--e2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--azul) 14%, transparent);
+  color: var(--azul);
   font-size: var(--texto-menudo);
-  font-weight: 600;
-  color: var(--texto-secundario);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   margin: 0 0 var(--e1);
 }
 
 .bloque--replica .bloque__titulo {
-  color: var(--azul);
+  background: color-mix(in srgb, var(--naranja) 18%, transparent);
+  color: var(--naranja);
 }
 
 /* Dos columnas: los nombres se quedan quietos y los votos se deslizan. Las dos
@@ -897,6 +958,9 @@ button {
 }
 
 .voto {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
   flex: none;
   width: var(--alto-voto);
   height: var(--alto-voto);
@@ -908,6 +972,18 @@ button {
   font-weight: 600;
   transition: transform var(--transicion-pulsacion) ease-out,
     border-color var(--transicion-pulsacion) ease-out;
+}
+
+/* El medio punto va pequeño al lado del número, para que el cuadrito siga
+   leyéndose de un vistazo como si fuera una sola cifra. */
+.voto__medio {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.voto__medio:empty {
+  display: none;
 }
 
 .voto:active:not(:disabled) {
@@ -928,30 +1004,51 @@ button {
 
 /* ── Teclado numérico ───────────────────────────────────────────────────── */
 
+/* Las columnas y el alto los pone app.js: con nota máxima 10 hay doce teclas
+   y tienen que seguir cabiendo sin comerse la pista. */
 .teclado {
   flex: none;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--e3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
   padding: var(--e3) var(--margen);
   padding-left: max(var(--margen), env(safe-area-inset-left));
   padding-right: max(var(--margen), env(safe-area-inset-right));
   padding-bottom: max(var(--e3), env(safe-area-inset-bottom));
 }
 
+.teclado__rejilla {
+  display: grid;
+  grid-template-columns: repeat(var(--teclas-por-fila, 3), 1fr);
+  gap: var(--e2);
+}
+
 .tecla {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 68px;
+  min-height: var(--alto-tecla, 68px);
   border: 0;
   border-radius: var(--radio-tecla);
   background: var(--superficie);
-  font-size: 30px;
+  font-size: clamp(22px, calc(var(--alto-tecla, 68px) * 0.45), 30px);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   transition: transform var(--transicion-pulsacion) ease-out,
     opacity var(--transicion-pulsacion) ease-out;
+}
+
+/* El medio punto matiza la nota que se acaba de meter, así que va aparte de
+   los números y ocupa toda la fila: es fácil de acertar sin mirar. */
+.tecla--medio {
+  min-height: 46px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--azul);
+}
+
+.tecla--medio[hidden] {
+  display: none;
 }
 
 .tecla:active:not(:disabled) {

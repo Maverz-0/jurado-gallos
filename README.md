@@ -71,7 +71,8 @@ js/
   storage.js    la única parte que conoce IndexedDB
   history.js    resultados anteriores
   transfer.js   exportar e importar
-  compat.js     traducción del esquema viejo, el de sólo dos batalleros
+  share.js      el acta, en imagen o en texto
+  compat.js     traducción de los esquemas anteriores
 ```
 
 `scoring.js` no toca el DOM ni lee el reloj: recibe un estado y devuelve otro.
@@ -104,6 +105,31 @@ en ninguno, el teclado se apaga hasta que se añada otro tramo o se termine.
 
 La **réplica** es un tramo más, marcado aparte: nunca se suma al marcador de la
 batalla; se muestra debajo, en su propia línea.
+
+Los totales se quedan fijos arriba y sólo se desliza la lista de tramos, que
+además se coloca sola en el tramo en curso cada vez que se cambia de uno a otro.
+
+## Escala
+
+La **nota máxima** va de 1 a 10 y se elige al preparar la batalla; el teclado se
+monta con las teclas que hagan falta. Con **medios puntos** activados aparece
+una tecla «,5» que suma o quita medio punto a la última nota metida (o a la que
+esté marcada), sin mover el turno.
+
+La **pantalla siempre encendida** usa la Screen Wake Lock API, disponible en
+Safari desde iOS 16.4. Si el navegador no la trae, el interruptor no aparece.
+El sistema suelta el bloqueo al salir de la app, así que se vuelve a pedir al
+regresar.
+
+## Compartir
+
+Desde el resultado o desde el detalle del historial, en dos formatos:
+
+- **Imagen**: un PNG con el acta dibujada con Canvas, sin librerías. En WhatsApp
+  se ve como una foto, sin que nadie tenga que abrir nada.
+- **Texto**: el mismo acta para pegar en un chat.
+
+Se entregan por `navigator.share`; donde no exista, se descargan.
 
 ### El esquema de datos ha cambiado dos veces
 

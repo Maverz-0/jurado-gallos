@@ -18,6 +18,12 @@ import {
 } from './storage.js';
 import { crearHistorial } from './history.js';
 import { crearCopia } from './transfer.js';
+import { compartirImagen, compartirTexto } from './share.js';
+
+const { comoSeEscribe } = scoring;
+
+/** Preferencia suelta: no son datos de batallas, así que va en localStorage. */
+const CLAVE_PANTALLA = 'jurado-gallos:pantalla-encendida';
 
 const RAIZ = 'vista-inicio';
 const PUNTUACION = 'vista-puntuacion';
@@ -59,6 +65,12 @@ const el = {
   btnAnadir: $('btn-anadir'),
   listaTramos: $('lista-tramos'),
   btnAnadirTramo: $('btn-anadir-tramo'),
+  notaMaxima: $('nota-maxima'),
+  notaMenos: $('nota-menos'),
+  notaMas: $('nota-mas'),
+  opDecimales: $('op-decimales'),
+  opPantalla: $('op-pantalla'),
+  filaPantalla: $('fila-pantalla'),
   btnHistorial: $('btn-historial'),
   btnCopia: $('btn-copia'),
   btnAvisoCopia: $('btn-aviso-copia'),
@@ -71,17 +83,28 @@ const el = {
   btnCancelar: $('btn-cancelar'),
   btnTerminar: $('btn-terminar'),
   btnBorrar: $('btn-borrar'),
+  btnMedio: $('btn-medio'),
   teclado: $('teclado'),
+  tecladoRejilla: $('teclado-rejilla'),
   turno: $('turno'),
   marcadores: $('marcadores'),
+  desplazable: $('desplazable'),
   bloques: $('bloques'),
   btnTramoEnCurso: $('btn-tramo-en-curso'),
   btnReplica: $('btn-replica'),
 
   btnVolver: $('btn-volver'),
   btnGuardar: $('btn-guardar'),
+  btnCompartir: $('btn-compartir'),
+  btnCompartirDetalle: $('btn-compartir-detalle'),
   avisoGuardar: $('aviso-guardar'),
   finalBatalleros: $('final-batalleros'),
+
+  veloCompartir: $('velo-compartir'),
+  compartirImagen: $('compartir-imagen'),
+  compartirTexto: $('compartir-texto'),
+  compartirCancelar: $('compartir-cancelar'),
+  compartirAviso: $('compartir-aviso'),
 
   btnCerrarHistorial: $('btn-cerrar-historial'),
   btnCerrarDetalle: $('btn-cerrar-detalle'),
@@ -113,6 +136,7 @@ const el = {
   tplOrdinal: $('tpl-ordinal'),
   tplFilaVotos: $('tpl-fila-votos'),
   tplVoto: $('tpl-voto'),
+  tplTecla: $('tpl-tecla'),
   tplFinal: $('tpl-final'),
 };
 
@@ -125,7 +149,14 @@ let aMedias = null;
 /** Lo que se está preparando en la pantalla de inicio. */
 let plantilla = [];
 let plantillaTramos = [];
+let opciones = {
+  notaMaxima: scoring.NOTA_MAXIMA_POR_DEFECTO,
+  decimales: false,
+};
 let contadorIds = 0;
+
+/** El tramo que se estaba mirando la última vez que se pintó. */
+let ultimoTramoVisto = null;
 
 // ── Nombres ────────────────────────────────────────────────────────────────
 
@@ -372,6 +403,83 @@ function filaDeTramo(tramo, i) {
   return caja;
 }
 
+// ── Escala de puntuación ───────────────────────────────────────────────────
+
+function pintarOpciones() {
+  poner(el.notaMaxima, opciones.notaMaxima);
+  el.notaMenos.disabled = opciones.notaMaxima <= scoring.MIN_NOTA_MAXIMA;
+  el.notaMas.disabled = opciones.notaMaxima >= scoring.MAX_NOTA_MAXIMA;
+  el.opDecimales.checked = opciones.decimales;
+}
+
+function moverNotaMaxima(paso) {
+  opciones.notaMaxima = scoring.acotarNotaMaxima(opciones.notaMaxima + paso);
+  pintarOpciones();
+}
+
+// ── Pantalla siempre encendida ─────────────────────────────────────────────
+
+/**
+ * El sistema suelta el bloqueo solo en cuanto la app deja de verse, así que
+ * hay que volver a pedirlo al regresar. La preferencia se recuerda aparte.
+ */
+let centinelaPantalla = null;
+
+const sePuedeMantenerEncendida = () => 'wakeLock' in navigator;
+
+function quierePantallaEncendida() {
+  try {
+    return localStorage.getItem(CLAVE_PANTALLA) === 'si';
+  } catch {
+    return false;
+  }
+}
+
+function apuntarPreferenciaDePantalla(quiere) {
+  try {
+    localStorage.setItem(CLAVE_PANTALLA, quiere ? 'si' : 'no');
+  } catch {
+    // Sin almacenamiento la preferencia dura lo que dure la sesión. No pasa nada.
+  }
+}
+
+async function mantenerPantallaEncendida() {
+  if (!sePuedeMantenerEncendida() || centinelaPantalla) return;
+
+  try {
+    centinelaPantalla = await navigator.wakeLock.request('screen');
+    centinelaPantalla.addEventListener('release', () => {
+      centinelaPantalla = null;
+    });
+  } catch (error) {
+    console.error('No se ha podido mantener la pantalla encendida:', error);
+  }
+}
+
+async function dejarQueSeApague() {
+  const centinela = centinelaPantalla;
+  centinelaPantalla = null;
+  try {
+    await centinela?.release();
+  } catch {
+    // Si ya estaba suelto, no hay nada que hacer.
+  }
+}
+
+function prepararPantalla() {
+  if (!sePuedeMantenerEncendida()) return;
+
+  el.filaPantalla.hidden = false;
+  el.opPantalla.checked = quierePantallaEncendida();
+  if (el.opPantalla.checked) mantenerPantallaEncendida();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && el.opPantalla.checked) {
+      mantenerPantallaEncendida();
+    }
+  });
+}
+
 // ── Reordenar arrastrando ──────────────────────────────────────────────────
 
 /**
@@ -475,11 +583,13 @@ function pintarMarcadores() {
     );
     poner(
       caja.querySelector('.marcador__total'),
-      scoring.total(batalla, batallero.id)
+      comoSeEscribe(scoring.total(batalla, batallero.id))
     );
     poner(
       caja.querySelector('.marcador__replica'),
-      conReplica ? `réplica ${scoring.totalDeReplica(batalla, batallero.id)}` : ''
+      conReplica
+        ? `réplica ${comoSeEscribe(scoring.totalDeReplica(batalla, batallero.id))}`
+        : ''
     );
   });
 }
@@ -530,8 +640,12 @@ function pintarBloques() {
         const cuadro = fila.children[i];
         const voto = votos[i];
 
+        const entero = cuadro.querySelector('.voto__entero');
+        const medio = cuadro.querySelector('.voto__medio');
+
         if (voto) {
-          poner(cuadro, voto.valor);
+          poner(entero, Math.trunc(voto.valor));
+          poner(medio, Number.isInteger(voto.valor) ? '' : ',5');
           cuadro.dataset.indice = String(voto.indice);
           delete cuadro.dataset.tramo;
           delete cuadro.dataset.batallero;
@@ -539,10 +653,11 @@ function pintarBloques() {
           cuadro.classList.toggle('voto--marcado', batalla.marcada === voto.indice);
           cuadro.setAttribute(
             'aria-label',
-            `${comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: ${voto.valor}`
+            `${comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: ${comoSeEscribe(voto.valor)}`
           );
         } else {
-          poner(cuadro, '');
+          poner(entero, '');
+          poner(medio, '');
           delete cuadro.dataset.indice;
           // Un hueco sirve para llevar el cursor a ese gallo y ese tramo.
           cuadro.dataset.tramo = tramo.id;
@@ -559,18 +674,68 @@ function pintarBloques() {
   });
 }
 
-function pintarPuntuacion() {
+/**
+ * Monta las teclas numéricas. Sólo hace falta al empezar o al retomar, porque
+ * la escala se decide antes de la batalla y ya no cambia.
+ */
+function montarTeclado() {
+  const notas = scoring.notasDelTeclado(batalla);
+  const teclas = notas.map((nota) => {
+    const tecla = clonar(el.tplTecla);
+    tecla.dataset.nota = String(nota);
+    tecla.textContent = nota;
+    return tecla;
+  });
+
+  // El botón de borrar cierra la rejilla, detrás del último número.
+  el.tecladoRejilla.replaceChildren(...teclas, el.btnBorrar);
+
+  const cuantas = teclas.length + 1;
+  const porFila = cuantas <= 6 ? 3 : 4;
+  const filas = Math.ceil(cuantas / porFila);
+  const alto = filas <= 2 ? 68 : filas === 3 ? 58 : 50;
+
+  // Si la última fila queda a medias, el botón de borrar se estira y la llena.
+  const sobra = cuantas % porFila;
+  el.btnBorrar.style.gridColumn = sobra === 0 ? '' : `span ${porFila - sobra + 1}`;
+
+  el.teclado.style.setProperty('--teclas-por-fila', porFila);
+  el.teclado.style.setProperty('--alto-tecla', `${alto}px`);
+
+  el.btnMedio.hidden = !batalla.decimales;
+}
+
+function pintarPuntuacion({ seguirElTramo = true } = {}) {
   pintarMarcadores();
   pintarBloques();
 
   const sePuedeAnotar = scoring.puedeAnotar(batalla);
-  for (const tecla of el.teclado.querySelectorAll('[data-nota]')) {
+  for (const tecla of el.tecladoRejilla.querySelectorAll('[data-nota]')) {
     tecla.disabled = !sePuedeAnotar;
   }
 
+  el.btnMedio.disabled = !scoring.puedeMediarPunto(batalla);
   el.btnBorrar.disabled = scoring.estaVacia(batalla);
   el.btnTerminar.disabled = scoring.estaVacia(batalla);
   el.turno.textContent = queTocaAhora(sePuedeAnotar);
+
+  // Al cambiar de tramo, el nuevo se trae a la vista solo.
+  if (seguirElTramo && batalla.cursor.tramo !== ultimoTramoVisto) {
+    ultimoTramoVisto = batalla.cursor.tramo;
+    asomarElTramo();
+  }
+}
+
+/** Trae a la vista el bloque del tramo en curso. */
+function asomarElTramo(idTramo = batalla.cursor.tramo) {
+  const t = batalla.tramos.findIndex((tramo) => tramo.id === idTramo);
+  const bloque = el.bloques.children[t];
+  if (!bloque) return;
+
+  // `start` para que el tramo quede entero a la vista, no asomando por abajo.
+  // Y sin animar: puntuando llegan notas seguidas y un desplazamiento suave se
+  // queda a medias en cuanto lo interrumpe el siguiente.
+  bloque.scrollIntoView({ block: 'start', behavior: 'auto' });
 }
 
 function queTocaAhora(sePuedeAnotar) {
@@ -603,16 +768,15 @@ function pintarFinal() {
       const bloque = clonar(el.tplFinal);
       const porTramo = batalla.tramos.map(
         (tramo) =>
-          `${comoSeLlamaElTramo(tramo)}: ${scoring.totalDeTramo(batalla, tramo.id, batallero.id)}`
+          `${comoSeLlamaElTramo(tramo)}: ${comoSeEscribe(scoring.totalDeTramo(batalla, tramo.id, batallero.id))}`
       );
 
       bloque.querySelector('.resultado__nombre').textContent = comoSeLlama(
         batalla.batalleros,
         batallero.id
       );
-      bloque.querySelector('.resultado__total').textContent = scoring.total(
-        batalla,
-        batallero.id
+      bloque.querySelector('.resultado__total').textContent = comoSeEscribe(
+        scoring.total(batalla, batallero.id)
       );
       bloque.querySelector('.fila__valor').textContent = porTramo.join('  ·  ');
       bloque.querySelector('.fila__etiqueta').textContent = conReplica
@@ -806,6 +970,8 @@ function retomar() {
 
   batalla = aMedias;
   olvidarLoQueQuedoAMedias();
+  ultimoTramoVisto = batalla.cursor.tramo;
+  montarTeclado();
   pintarPuntuacion();
   empujar(PUNTUACION);
   asomarElUltimoVoto();
@@ -837,7 +1003,9 @@ async function empezarBatalla(evento) {
     olvidarLoQueQuedoAMedias();
   }
 
-  batalla = scoring.crearBatalla(plantilla, plantillaTramos);
+  batalla = scoring.crearBatalla(plantilla, plantillaTramos, opciones);
+  ultimoTramoVisto = batalla.cursor.tramo;
+  montarTeclado();
   pintarPuntuacion();
   empujar(PUNTUACION);
   apuntarBorrador();
@@ -848,6 +1016,12 @@ function anotar(valor) {
   batalla = scoring.anotar(batalla, valor, Date.now());
   pintarPuntuacion();
   if (!corregia) asomarElUltimoVoto();
+  apuntarBorrador();
+}
+
+function medioPunto() {
+  batalla = scoring.medioPunto(batalla);
+  pintarPuntuacion({ seguirElTramo: false });
   apuntarBorrador();
 }
 
@@ -876,13 +1050,17 @@ async function anadirTramoEnCurso({ replica }) {
   });
   if (!elegido) return;
 
+  const nuevo = nuevoId('t');
   batalla = scoring.anadirTramo(batalla, {
-    id: nuevoId('t'),
+    id: nuevo,
     modalidad: elegido.modalidad,
     intervenciones: elegido.intervenciones,
     replica,
   });
-  pintarPuntuacion();
+  pintarPuntuacion({ seguirElTramo: false });
+  // Recién añadido, lo que se quiere ver es el tramo nuevo.
+  ultimoTramoVisto = batalla.cursor.tramo;
+  asomarElTramo(nuevo);
   apuntarBorrador();
 }
 
@@ -955,9 +1133,79 @@ async function guardar() {
 
 function soltarBatalla() {
   batalla = null;
+  ultimoTramoVisto = null;
   soltarBorrador();
   reiniciarPlantilla();
   volverAlaRaiz();
+}
+
+// ── Compartir el acta ──────────────────────────────────────────────────────
+
+/** La batalla en curso, con la misma forma que tiene una ya guardada. */
+function actaDeLaBatalla() {
+  return {
+    fecha: new Date().toISOString(),
+    batalleros: batalla.batalleros.map((batallero) => ({
+      id: batallero.id,
+      nombre: comoSeLlama(batalla.batalleros, batallero.id),
+      total: scoring.total(batalla, batallero.id),
+      replica: scoring.totalDeReplica(batalla, batallero.id),
+    })),
+    tramos: batalla.tramos,
+    puntuaciones: batalla.puntuaciones,
+  };
+}
+
+async function compartir(acta) {
+  const focoPrevio = document.activeElement;
+  el.compartirAviso.textContent = '';
+  el.pila.inert = true;
+  el.veloCompartir.hidden = false;
+  el.compartirImagen.focus();
+
+  const cerrar = () => {
+    el.veloCompartir.hidden = true;
+    el.pila.inert = false;
+    el.compartirImagen.removeEventListener('click', conImagen);
+    el.compartirTexto.removeEventListener('click', conTexto);
+    el.compartirCancelar.removeEventListener('click', cerrar);
+    document.removeEventListener('keydown', alTeclear);
+    focoPrevio?.focus?.();
+  };
+
+  const entregar = async (como) => {
+    el.compartirImagen.disabled = true;
+    el.compartirTexto.disabled = true;
+    el.compartirAviso.textContent = 'Preparando…';
+
+    try {
+      const que = await como(acta);
+      if (que === 'descargado') {
+        el.compartirAviso.textContent = 'Descargado: no se puede compartir desde aquí.';
+        return;
+      }
+    } catch (error) {
+      console.error('No se ha podido compartir:', error);
+      el.compartirAviso.textContent = 'No se ha podido preparar. Inténtalo otra vez.';
+      return;
+    } finally {
+      el.compartirImagen.disabled = false;
+      el.compartirTexto.disabled = false;
+    }
+
+    cerrar();
+  };
+
+  const conImagen = () => entregar(compartirImagen);
+  const conTexto = () => entregar(compartirTexto);
+  const alTeclear = (evento) => {
+    if (evento.key === 'Escape') cerrar();
+  };
+
+  el.compartirImagen.addEventListener('click', conImagen);
+  el.compartirTexto.addEventListener('click', conTexto);
+  el.compartirCancelar.addEventListener('click', cerrar);
+  document.addEventListener('keydown', alTeclear);
 }
 
 // ── Enlaces ────────────────────────────────────────────────────────────────
@@ -965,15 +1213,28 @@ function soltarBatalla() {
 el.formNueva.addEventListener('submit', empezarBatalla);
 el.btnAnadir.addEventListener('click', anadirBatallero);
 el.btnAnadirTramo.addEventListener('click', anadirTramoAlaPlantilla);
+el.notaMenos.addEventListener('click', () => moverNotaMaxima(-1));
+el.notaMas.addEventListener('click', () => moverNotaMaxima(1));
+el.opDecimales.addEventListener('change', () => {
+  opciones.decimales = el.opDecimales.checked;
+});
+el.opPantalla.addEventListener('change', () => {
+  const quiere = el.opPantalla.checked;
+  apuntarPreferenciaDePantalla(quiere);
+  if (quiere) mantenerPantallaEncendida();
+  else dejarQueSeApague();
+});
 el.btnHistorial.addEventListener('click', () => historial.abrir());
 el.btnCopia.addEventListener('click', () => copia.abrir());
 el.btnAvisoCopia.addEventListener('click', () => copia.abrir());
 el.btnRetomar.addEventListener('click', retomar);
 
-el.teclado.addEventListener('click', (evento) => {
+el.tecladoRejilla.addEventListener('click', (evento) => {
   const tecla = evento.target.closest('[data-nota]');
   if (tecla) anotar(Number(tecla.dataset.nota));
 });
+
+el.btnMedio.addEventListener('click', medioPunto);
 
 el.marcadores.addEventListener('click', (evento) => {
   const caja = evento.target.closest('[data-id]');
@@ -1003,6 +1264,11 @@ el.btnCancelar.addEventListener('click', cancelar);
 el.btnTerminar.addEventListener('click', terminar);
 el.btnVolver.addEventListener('click', sacar);
 el.btnGuardar.addEventListener('click', guardar);
+el.btnCompartir.addEventListener('click', () => compartir(actaDeLaBatalla()));
+el.btnCompartirDetalle.addEventListener('click', () => {
+  const abierta = historial.laQueEstaAbierta();
+  if (abierta) compartir(abierta);
+});
 
 el.btnCerrarHistorial.addEventListener('click', sacar);
 el.btnCerrarDetalle.addEventListener('click', sacar);
@@ -1010,16 +1276,27 @@ el.btnCerrarCopia.addEventListener('click', sacar);
 
 /** Teclado físico, para poder puntuar cómodo desde el ordenador. */
 document.addEventListener('keydown', (evento) => {
-  if (navegando || !enCima(PUNTUACION)) return;
-  if (!el.velo.hidden || !el.veloModalidad.hidden) return;
+  if (navegando || !enCima(PUNTUACION) || !batalla) return;
+  if (!el.velo.hidden || !el.veloModalidad.hidden || !el.veloCompartir.hidden) return;
   if (evento.metaKey || evento.ctrlKey || evento.altKey) return;
 
-  if (evento.key >= '0' && evento.key <= '4') {
+  // Con nota máxima por encima de nueve, el 10 se teclea con la 'a'.
+  const nota =
+    evento.key >= '0' && evento.key <= '9'
+      ? Number(evento.key)
+      : evento.key.toLowerCase() === 'a'
+        ? 10
+        : null;
+
+  if (nota !== null && nota <= batalla.notaMaxima) {
     evento.preventDefault();
-    anotar(Number(evento.key));
+    anotar(nota);
   } else if (evento.key === 'Backspace' || evento.key === 'Delete') {
     evento.preventDefault();
     borrar();
+  } else if (evento.key === ',' || evento.key === '.') {
+    evento.preventDefault();
+    medioPunto();
   }
 });
 
@@ -1073,6 +1350,8 @@ function anunciarSiEspera(trabajador) {
 // ── Arranque ───────────────────────────────────────────────────────────────
 
 reiniciarPlantilla();
+pintarOpciones();
+prepararPantalla();
 pintarPila({ bloquear: false });
 pedirPersistencia();
 buscarLoQueQuedoAMedias();

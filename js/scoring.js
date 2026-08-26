@@ -15,6 +15,8 @@
  *     puntuaciones: [{ tramo, batallero, valor, ts }],   // por inserción
  *     cursor:       { tramo, batallero },
  *     marcada:      índice del voto a sustituir, o null
+ *     notaMaxima:   hasta dónde llega el teclado,
+ *     decimales:    si se admiten medios puntos
  *   }
  */
 
@@ -22,10 +24,14 @@ export const MIN_BATALLEROS = 2;
 export const MAX_BATALLEROS = 10;
 
 export const NOTA_MIN = 0;
-export const NOTA_MAX = 4;
 
-/** Las notas que ofrece el teclado, en el orden en que se pintan. */
-export const NOTAS = [0, 1, 2, 3, 4];
+/** Hasta dónde puede llegar la escala que se elige al preparar la batalla. */
+export const MIN_NOTA_MAXIMA = 1;
+export const MAX_NOTA_MAXIMA = 10;
+export const NOTA_MAXIMA_POR_DEFECTO = 4;
+
+/** El paso cuando se admiten medios puntos. */
+export const MEDIO = 0.5;
 
 export const MIN_INTERVENCIONES = 1;
 export const MAX_INTERVENCIONES = 20;
@@ -61,11 +67,22 @@ export function crearTramo({
 }
 
 export function acotar(intervenciones) {
-  const entero = Math.round(Number(intervenciones) || 0);
-  return Math.min(MAX_INTERVENCIONES, Math.max(MIN_INTERVENCIONES, entero));
+  return entre(
+    intervenciones,
+    MIN_INTERVENCIONES,
+    MAX_INTERVENCIONES,
+    INTERVENCIONES_POR_DEFECTO
+  );
 }
 
-export function crearBatalla(batalleros, tramos) {
+/** Un cero es falsy, así que el valor por defecto se decide por NaN, no por `||`. */
+function entre(valor, minimo, maximo, porDefecto) {
+  const numero = Number(valor);
+  const entero = Number.isFinite(numero) ? Math.round(numero) : porDefecto;
+  return Math.min(maximo, Math.max(minimo, entero));
+}
+
+export function crearBatalla(batalleros, tramos, opciones = {}) {
   const limpios = batalleros.map(({ id, nombre }) => ({
     id,
     nombre: (nombre ?? '').trim(),
@@ -77,7 +94,30 @@ export function crearBatalla(batalleros, tramos) {
     puntuaciones: [],
     cursor: { tramo: tramos[0]?.id ?? null, batallero: limpios[0]?.id ?? null },
     marcada: null,
+    notaMaxima: acotarNotaMaxima(opciones.notaMaxima),
+    decimales: !!opciones.decimales,
   };
+}
+
+export function acotarNotaMaxima(notaMaxima) {
+  return entre(
+    notaMaxima,
+    MIN_NOTA_MAXIMA,
+    MAX_NOTA_MAXIMA,
+    NOTA_MAXIMA_POR_DEFECTO
+  );
+}
+
+/** 3 se escribe «3»; 3,5 con coma, que es como se lee en español. */
+export function comoSeEscribe(valor) {
+  return Number.isInteger(valor)
+    ? String(valor)
+    : String(valor).replace('.', ',');
+}
+
+/** Los números que ofrece el teclado, de cero al máximo elegido. */
+export function notasDelTeclado(batalla) {
+  return Array.from({ length: batalla.notaMaxima + 1 }, (_, i) => i);
 }
 
 // ── Consultas ──────────────────────────────────────────────────────────────
@@ -249,7 +289,7 @@ function avanzar(batalla, cursor) {
  * cuanto se corrige el voto.
  */
 export function anotar(batalla, valor, ts) {
-  if (!esNotaValida(valor)) return batalla;
+  if (!esNotaValida(valor, batalla)) return batalla;
 
   if (batalla.marcada !== null) {
     const puntuaciones = batalla.puntuaciones.map((puntuacion, i) =>
@@ -335,12 +375,56 @@ export function anadirTramo(batalla, tramo) {
   };
 }
 
+/**
+ * Suma o quita medio punto a la última nota metida (o a la que esté marcada).
+ * Pulsarla dos veces lo deja como estaba: se mete la nota y se matiza después,
+ * que es más rápido que tener que decidirlo antes de puntuar.
+ */
+export function medioPunto(batalla) {
+  if (!batalla.decimales) return batalla;
+  if (batalla.puntuaciones.length === 0) return batalla;
+
+  const i = batalla.marcada ?? batalla.puntuaciones.length - 1;
+  const puntuacion = batalla.puntuaciones[i];
+  const conMedio = Number.isInteger(puntuacion.valor);
+  const valor = conMedio
+    ? puntuacion.valor + MEDIO
+    : puntuacion.valor - MEDIO;
+
+  if (!esNotaValida(valor, batalla)) return batalla;
+
+  return {
+    ...batalla,
+    puntuaciones: batalla.puntuaciones.map((otra, j) =>
+      j === i ? { ...otra, valor } : otra
+    ),
+  };
+}
+
+/** Si no hay nada que matizar, la tecla del medio punto no pinta nada. */
+export function puedeMediarPunto(batalla) {
+  if (!batalla.decimales) return false;
+  if (batalla.puntuaciones.length === 0) return false;
+
+  const i = batalla.marcada ?? batalla.puntuaciones.length - 1;
+  const valor = batalla.puntuaciones[i].valor;
+  const destino = Number.isInteger(valor) ? valor + MEDIO : valor - MEDIO;
+
+  return esNotaValida(destino, batalla);
+}
+
 export function estaVacia(batalla) {
   return batalla.puntuaciones.length === 0;
 }
 
-export function esNotaValida(valor) {
-  return Number.isInteger(valor) && valor >= NOTA_MIN && valor <= NOTA_MAX;
+export function esNotaValida(valor, batalla) {
+  if (typeof valor !== 'number' || !Number.isFinite(valor)) return false;
+  if (valor < NOTA_MIN || valor > batalla.notaMaxima) return false;
+
+  // Con decimales valen los múltiplos de medio punto; sin ellos, sólo enteros.
+  return batalla.decimales
+    ? Number.isInteger(valor / MEDIO)
+    : Number.isInteger(valor);
 }
 
 // ── Restaurar lo que quedó a medias ────────────────────────────────────────
@@ -371,12 +455,17 @@ export function restaurarBatalla(datos) {
   const idsTramos = new Set(tramos.map((tramo) => tramo.id));
   if (idsTramos.size !== tramos.length) return null;
 
+  const escala = {
+    notaMaxima: acotarNotaMaxima(datos.notaMaxima),
+    decimales: !!datos.decimales,
+  };
+
   const valeElVoto = (puntuacion) =>
     !!puntuacion &&
     typeof puntuacion === 'object' &&
     idsTramos.has(puntuacion.tramo) &&
     idsBatalleros.has(puntuacion.batallero) &&
-    esNotaValida(puntuacion.valor);
+    esNotaValida(puntuacion.valor, escala);
 
   if (!datos.puntuaciones.every(valeElVoto)) return null;
 
@@ -385,6 +474,7 @@ export function restaurarBatalla(datos) {
     idsTramos.has(cursor.tramo) && idsBatalleros.has(cursor.batallero);
 
   return {
+    ...escala,
     batalleros: batalleros.map(({ id, nombre }) => ({ id, nombre })),
     tramos,
     puntuaciones: datos.puntuaciones.map(({ tramo, batallero, valor, ts }) => ({

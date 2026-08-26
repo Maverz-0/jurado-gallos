@@ -8,6 +8,7 @@
 
 import { listarBatallas, importarBatallas } from './storage.js';
 import { alDia } from './compat.js';
+import { comoSeEscribe } from './scoring.js';
 
 /** Fecha de la última copia de seguridad, en ISO. */
 const CLAVE_ULTIMA_COPIA = 'jurado-gallos:ultima-copia';
@@ -199,15 +200,18 @@ function comoTexto(batallas, ahora) {
       ...batalla.batalleros.map((batallero) => {
         const notas = notasDe(batalla, tramo.id, batallero.id);
         const suma = notas.reduce((total, nota) => total + nota, 0);
-        return `     ${batallero.nombre}: ${notas.length ? notas.join(' · ') : 'sin notas'}  =  ${suma}`;
+        const escritas = notas.map(comoSeEscribe);
+        return `     ${batallero.nombre}: ${escritas.length ? escritas.join(' · ') : 'sin notas'}  =  ${comoSeEscribe(suma)}`;
       }),
       '',
     ]);
 
     const totales = batalla.batalleros.map(
       (batallero) =>
-        `   ${batallero.nombre}: ${batallero.total}` +
-        (batallero.replica ? `   (réplica ${batallero.replica})` : '')
+        `   ${batallero.nombre}: ${comoSeEscribe(batallero.total)}` +
+        (batallero.replica
+          ? `   (réplica ${comoSeEscribe(batallero.replica)})`
+          : '')
     );
 
     return [

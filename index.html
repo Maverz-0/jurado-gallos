@@ -66,6 +66,30 @@
               un 8×8 y después un 4×4.
             </p>
 
+            <p class="grupo__encabezado grupo__encabezado--separado">Puntuación</p>
+            <div class="tarjeta">
+              <div class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Nota máxima</span>
+                <div class="contador">
+                  <button class="contador__boton" type="button" id="nota-menos" aria-label="Una menos">−</button>
+                  <span class="contador__cifra tabular" id="nota-maxima">4</span>
+                  <button class="contador__boton" type="button" id="nota-mas" aria-label="Una más">+</button>
+                </div>
+              </div>
+              <label class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Medios puntos</span>
+                <input class="interruptor" type="checkbox" id="op-decimales" role="switch" />
+              </label>
+              <label class="fila" id="fila-pantalla" hidden>
+                <span class="fila__titulo fila__titulo--ancho">Pantalla siempre encendida</span>
+                <input class="interruptor" type="checkbox" id="op-pantalla" role="switch" />
+              </label>
+            </div>
+            <p class="grupo__pie" id="pie-puntuacion">
+              Con medios puntos se puede meter un 3,5 pulsando «,5» justo
+              después del número.
+            </p>
+
             <button class="boton boton--principal" type="submit">
               Empezar batalla
             </button>
@@ -140,30 +164,33 @@
         </header>
 
         <div class="vista__cuerpo vista__cuerpo--puntuacion">
-          <div class="marcadores" id="marcadores" role="group" aria-label="Marcadores"></div>
-
-          <p class="turno" aria-live="polite" id="turno"></p>
+          <!-- Los totales no se mueven: al deslizar por los tramos siguen a la
+               vista, que es lo que hay que mirar mientras se puntúa. -->
+          <div class="fijo">
+            <div class="marcadores" id="marcadores" role="group" aria-label="Marcadores"></div>
+            <p class="turno" aria-live="polite" id="turno"></p>
+          </div>
 
           <!-- Un bloque por tramo, uno debajo de otro. Dentro de cada uno los
                nombres se quedan fijos y los votos se deslizan en horizontal. -->
-          <div class="bloques" id="bloques"></div>
+          <div class="desplazable" id="desplazable">
+            <div class="bloques" id="bloques"></div>
 
-          <div class="anadidos">
-            <button class="anadidos__accion" type="button" id="btn-tramo-en-curso">
-              Añadir modalidad
-            </button>
-            <button class="anadidos__accion" type="button" id="btn-replica">
-              Añadir réplica
-            </button>
+            <div class="anadidos">
+              <button class="anadidos__accion" type="button" id="btn-tramo-en-curso">
+                Añadir modalidad
+              </button>
+              <button class="anadidos__accion" type="button" id="btn-replica">
+                Añadir réplica
+              </button>
+            </div>
           </div>
         </div>
 
         <div class="teclado" id="teclado">
-          <button class="tecla" type="button" data-nota="0">0</button>
-          <button class="tecla" type="button" data-nota="1">1</button>
-          <button class="tecla" type="button" data-nota="2">2</button>
-          <button class="tecla" type="button" data-nota="3">3</button>
-          <button class="tecla" type="button" data-nota="4">4</button>
+          <!-- Las teclas numéricas las pone app.js: cuántas hay depende de la
+               nota máxima que se haya elegido al preparar la batalla. -->
+          <div class="teclado__rejilla" id="teclado-rejilla">
           <button
             class="tecla tecla--borrar"
             type="button"
@@ -187,6 +214,11 @@
                 stroke-linecap="round"
               />
             </svg>
+          </button>
+          </div>
+
+          <button class="tecla tecla--medio" type="button" id="btn-medio" hidden disabled>
+            ,5
           </button>
         </div>
       </section>
@@ -216,6 +248,10 @@
 
         <div class="vista__cuerpo">
           <div id="final-batalleros"></div>
+
+          <button class="boton boton--suave boton--separado" type="button" id="btn-compartir">
+            Compartir puntuaciones
+          </button>
 
           <button class="boton boton--principal" type="button" id="btn-guardar">
             Guardar batalla
@@ -296,7 +332,11 @@
             <div class="tarjeta" id="detalle-secuencia"></div>
           </div>
 
-          <button class="boton boton--destructivo" type="button" id="btn-borrar-batalla">
+          <button class="boton boton--suave" type="button" id="btn-compartir-detalle">
+            Compartir puntuaciones
+          </button>
+
+          <button class="boton boton--destructivo boton--separado" type="button" id="btn-borrar-batalla">
             Borrar batalla
           </button>
           <p class="grupo__pie" id="aviso-detalle" role="status"></p>
@@ -402,6 +442,30 @@
           <button class="boton boton--principal" type="button" id="hoja-aceptar">Añadir</button>
           <button class="boton boton--suave" type="button" id="hoja-cancelar">Cancelar</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ───────────────────── Compartir el acta ────────────────────── -->
+    <div class="velo" id="velo-compartir" hidden>
+      <div
+        class="hoja"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compartir-titulo"
+      >
+        <h2 class="hoja__titulo" id="compartir-titulo">Compartir como</h2>
+        <div class="hoja__acciones">
+          <button class="boton boton--principal" type="button" id="compartir-imagen">
+            Imagen
+          </button>
+          <button class="boton boton--suave" type="button" id="compartir-texto">
+            Texto
+          </button>
+          <button class="boton boton--suave" type="button" id="compartir-cancelar">
+            Cancelar
+          </button>
+        </div>
+        <p class="grupo__pie" id="compartir-aviso" role="status"></p>
       </div>
     </div>
 
@@ -515,7 +579,13 @@
     </template>
 
     <template id="tpl-voto">
-      <button class="voto tabular" type="button"></button>
+      <button class="voto tabular" type="button">
+        <span class="voto__entero"></span><span class="voto__medio"></span>
+      </button>
+    </template>
+
+    <template id="tpl-tecla">
+      <button class="tecla tabular" type="button"></button>
     </template>
 
     <template id="tpl-resultado">
