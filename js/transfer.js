@@ -186,12 +186,32 @@ function comoTexto(batallas, ahora) {
   const raya = '-'.repeat(52);
 
   const cabecera = [
-    'JURADO DE GALLOS',
+    'JURADO DE GALLOS · by Maverz',
     `Copia exportada el ${FECHA_CORTA.format(ahora)}`,
     cuantasBatallas(batallas.length),
   ].join('\n');
 
   const cuerpo = batallas.map((batalla, i) => {
+    // Unos filtros no tienen tramos ni réplica: se resumen en dos líneas.
+    if (batalla.tipo === 'filtros') {
+      return [
+        `${i + 1}. Filtros · ${batalla.participantes.length} participantes`,
+        `   ${FECHA_LARGA.format(new Date(batalla.fecha))}`,
+        `   ${batalla.intervenciones} intervenciones, pasan ${batalla.clasifican}`,
+        '',
+        ...batalla.participantes.map((participante) => {
+          const suyas = batalla.puntuaciones
+            .filter((p) => p.participante === participante.id)
+            .map((p) => p.valor);
+          const media = suyas.length
+            ? suyas.reduce((t, v) => t + v, 0) / suyas.length
+            : 0;
+          const paso = batalla.redondeo === 'unidades' ? 1 : 0.5;
+          return `     ${participante.nombre}: ${suyas.length ? suyas.map(comoSeEscribe).join(' · ') : 'sin notas'}  =  ${comoSeEscribe(Math.round(media / paso) * paso)}`;
+        }),
+      ].join('\n');
+    }
+
     const nombres = batalla.batalleros.map((batallero) => batallero.nombre);
 
     // Un bloque por tramo, para que la réplica se lea aparte de lo anterior.
@@ -269,11 +289,41 @@ function descargar(contenido, nombre, tipo) {
 
 // ── Validación de lo que llega de fuera ────────────────────────────────────
 
-function esBatallaValida(batalla) {
-  if (!batalla || typeof batalla !== 'object') return false;
-  if (typeof batalla.id !== 'string' || batalla.id.length === 0) return false;
-  if (typeof batalla.fecha !== 'string') return false;
-  if (Number.isNaN(Date.parse(batalla.fecha))) return false;
+function esBatallaValida(registro) {
+  if (!registro || typeof registro !== 'object') return false;
+  if (typeof registro.id !== 'string' || registro.id.length === 0) return false;
+  if (typeof registro.fecha !== 'string') return false;
+  if (Number.isNaN(Date.parse(registro.fecha))) return false;
+
+  return registro.tipo === 'filtros'
+    ? sonFiltrosValidos(registro)
+    : esUnaBatallaValida(registro);
+}
+
+/** Unos filtros guardados: participantes con grupo y notas que les apuntan. */
+function sonFiltrosValidos(filtros) {
+  if (!Array.isArray(filtros.participantes)) return false;
+  if (!Array.isArray(filtros.puntuaciones)) return false;
+  if (!Number.isInteger(filtros.intervenciones)) return false;
+
+  const ids = new Set(filtros.participantes.map((p) => p?.id));
+  if (ids.size !== filtros.participantes.length) return false;
+
+  const valen = filtros.participantes.every(
+    (p) =>
+      !!p &&
+      typeof p.id === 'string' &&
+      typeof p.nombre === 'string' &&
+      Number.isInteger(p.grupo)
+  );
+  if (!valen) return false;
+
+  return filtros.puntuaciones.every(
+    (p) => !!p && ids.has(p.participante) && Number.isFinite(p.valor)
+  );
+}
+
+function esUnaBatallaValida(batalla) {
   if (!Array.isArray(batalla.batalleros)) return false;
   if (batalla.batalleros.length < 2) return false;
   if (!batalla.batalleros.every(esBatalleroValido)) return false;

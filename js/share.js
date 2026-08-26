@@ -39,6 +39,20 @@ const AZUL = '#007aff';
 const NARANJA = '#ff9500';
 
 const FUENTE = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const FUENTE_FIRMA = 'ui-serif, "New York", Georgia, "Times New Roman", serif';
+
+export const FIRMA = 'by Maverz';
+
+/** El pie de todas las actas: el nombre de la app y la firma en cursiva. */
+function pie(pincel, x, y) {
+  pincel.fillStyle = TENUE;
+  pincel.font = `400 18px ${FUENTE}`;
+  pincel.fillText('Jurado de gallos', x, y);
+
+  const ancho = pincel.measureText('Jurado de gallos').width;
+  pincel.font = `italic 500 18px ${FUENTE_FIRMA}`;
+  pincel.fillText(FIRMA, x + ancho + 10, y);
+}
 
 import { comoSeEscribe } from './scoring.js';
 
@@ -185,10 +199,7 @@ export function dibujarActa(acta) {
     y += 26;
   }
 
-  pincel.fillStyle = TENUE;
-  pincel.font = `400 18px ${FUENTE}`;
-  pincel.fillText('Jurado de gallos', MARGEN, alto - MARGEN);
-
+  pie(pincel, MARGEN, alto - MARGEN);
   return lienzo;
 }
 
@@ -411,7 +422,7 @@ export function dibujarClasificacion(acta) {
     y += 28;
   }
 
-  pincel.fillText('Jurado de gallos', MARGEN, alto - MARGEN);
+  pie(pincel, MARGEN, alto - MARGEN);
   return lienzo;
 }
 
@@ -432,7 +443,7 @@ export function clasificacionComoTexto(acta) {
     );
   }
 
-  lineas.push('', '* clasifica', acta.escala);
+  lineas.push('', '* clasifica', acta.escala, '', `Jurado de gallos · ${FIRMA}`);
   return `${lineas.join('\n')}\n`;
 }
 
@@ -494,6 +505,7 @@ export function comoTexto(acta) {
     }
   }
 
+  lineas.push('', `Jurado de gallos · ${FIRMA}`);
   return `${lineas.join('\n')}\n`;
 }
 

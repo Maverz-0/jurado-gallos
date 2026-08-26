@@ -303,26 +303,110 @@ export function quitarParticipante(filtros, id) {
   return { ...sinEl, cursor: primeraPosicionLibre(sinEl) ?? sinEl.participantes[0]?.id ?? null };
 }
 
-/** Reordena dentro de su grupo: cambia el turno, no el grupo. */
-export function moverParticipante(filtros, id, hasta) {
+/**
+ * Lo coloca en un sitio concreto: puede quedarse en su grupo cambiando el
+ * turno, o pasar a otro grupo distinto.
+ *
+ * `hasta` es la posición dentro del grupo de destino, contando ya sin el
+ * arrastrado si venía de ese mismo grupo.
+ */
+export function moverParticipante(filtros, id, { grupo, hasta }) {
   const participante = participanteDe(filtros, id);
   if (!participante) return filtros;
 
-  const delGrupo = filtros.participantes.filter((p) => p.grupo === participante.grupo);
-  const desde = delGrupo.findIndex((p) => p.id === id);
-  const destino = Math.min(delGrupo.length - 1, Math.max(0, hasta));
-  if (desde === destino) return filtros;
+  const destino = Number.isInteger(grupo) ? grupo : participante.grupo;
+  const resto = filtros.participantes.filter((p) => p.id !== id);
+  const enDestino = resto.filter((p) => p.grupo === destino);
+  const donde = Math.min(enDestino.length, Math.max(0, hasta));
 
-  const reordenado = [...delGrupo];
-  reordenado.splice(destino, 0, ...reordenado.splice(desde, 1));
+  // La lista se reconstruye grupo a grupo, en el mismo orden en que estaban,
+  // para que sólo cambie lo que se ha movido.
+  const movido = { ...participante, grupo: destino };
+  const porGrupo = new Map();
 
-  // Se reconstruye la lista completa metiendo el grupo ya reordenado en su sitio.
-  let siguiente = 0;
-  const participantes = filtros.participantes.map((otro) =>
-    otro.grupo === participante.grupo ? reordenado[siguiente++] : otro
+  for (const otro of resto) {
+    if (!porGrupo.has(otro.grupo)) porGrupo.set(otro.grupo, []);
+    porGrupo.get(otro.grupo).push(otro);
+  }
+
+  if (!porGrupo.has(destino)) porGrupo.set(destino, []);
+  porGrupo.get(destino).splice(donde, 0, movido);
+
+  return {
+    ...filtros,
+    participantes: [...porGrupo.entries()]
+      .sort(([a], [b]) => a - b)
+      .flatMap(([, miembros]) => miembros),
+  };
+}
+
+/**
+ * Reconstruye unos filtros guardados o dejados a medias. Devuelve null si lo
+ * guardado no cuadra, igual que con las batallas.
+ */
+export function restaurar(datos) {
+  if (!datos || typeof datos !== 'object') return null;
+  if (!Array.isArray(datos.participantes)) return null;
+  if (!Array.isArray(datos.puntuaciones)) return null;
+
+  const participantes = datos.participantes.filter(
+    (p) =>
+      !!p &&
+      typeof p.id === 'string' &&
+      p.id.length > 0 &&
+      typeof p.nombre === 'string' &&
+      Number.isInteger(p.grupo)
   );
+  if (participantes.length !== datos.participantes.length) return null;
 
-  return { ...filtros, participantes };
+  const ids = new Set(participantes.map((p) => p.id));
+  if (ids.size !== participantes.length) return null;
+
+  const base = crearFiltros({
+    tamanoGrupo: datos.tamanoGrupo,
+    intervenciones: datos.intervenciones,
+    notaMaxima: datos.notaMaxima,
+    redondeo: datos.redondeo,
+    clasifican: datos.clasifican,
+  });
+
+  if (!datos.puntuaciones.every((p) => !!p && ids.has(p.participante) && esNotaValida(p.valor, base))) {
+    return null;
+  }
+
+  const jurados = Array.isArray(datos.jurados) && datos.jurados.length
+    ? datos.jurados.map((j) => ({
+        id: j.id,
+        nombre: j.nombre,
+        propio: !!j.propio,
+      }))
+    : base.jurados;
+
+  return {
+    ...base,
+    participantes: participantes.map(({ id, nombre, grupo }) => ({ id, nombre, grupo })),
+    jurados,
+    notasExtra: datos.notasExtra && typeof datos.notasExtra === 'object'
+      ? datos.notasExtra
+      : {},
+    puntuaciones: datos.puntuaciones.map(({ participante, valor, ts }) => ({
+      participante,
+      valor,
+      ts,
+    })),
+    cursor: ids.has(datos.cursor) ? datos.cursor : participantes[0]?.id ?? null,
+    marcada: null,
+  };
+}
+
+/** Todos en el orden en que se votan: grupo a grupo y dentro, por turno. */
+export function enOrdenDeVoto(filtros) {
+  return grupos(filtros).flatMap((grupo) =>
+    grupo.miembros.map((participante) => ({
+      participante,
+      grupo: grupo.interno,
+    }))
+  );
 }
 
 // ── Clasificación ──────────────────────────────────────────────────────────

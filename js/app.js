@@ -146,8 +146,9 @@ const el = {
 /** Batalla en curso, o null si no hay ninguna. */
 let batalla = null;
 
-/** Batalla que quedó a medias de una sesión anterior, aún sin retomar. */
+/** Lo que quedó a medias de una sesión anterior, aún sin retomar. */
 let aMedias = null;
+let filtrosAMedias = null;
 
 /** Lo que se está preparando en la pantalla de inicio. */
 let plantilla = [];
@@ -906,7 +907,12 @@ function pedirModalidad({ titulo, aceptar }) {
   });
 }
 
-const historial = crearHistorial({ empujar, sacar, confirmar });
+const historial = crearHistorial({
+  empujar,
+  sacar,
+  confirmar,
+  abrirFiltros: (registro) => vistaFiltros.abrirGuardados(registro),
+});
 const copia = crearCopia({ empujar });
 const vistaFiltros = crearVistaFiltros({
   empujar,
@@ -969,16 +975,31 @@ function soltarBorrador() {
   );
 }
 
-/** Al arrancar: si quedó algo a medias, se ofrece sin imponer nada. */
+/**
+ * Al arrancar: si quedó algo a medias, se ofrece sin imponer nada. Puede ser
+ * una batalla o unos filtros, así que primero se mira de qué se trata.
+ */
 async function buscarLoQueQuedoAMedias() {
-  let restaurada;
+  let guardado;
   try {
-    restaurada = scoring.restaurarBatalla(await leerBorrador());
+    guardado = await leerBorrador();
   } catch (error) {
-    console.error('No se ha podido leer la batalla a medias:', error);
+    console.error('No se ha podido leer lo que quedó a medias:', error);
+    return;
+  }
+  if (!guardado) return;
+
+  if (guardado.tipo === 'filtros') {
+    const resumen = vistaFiltros.resumirLoQueQuedoAMedias(guardado);
+    if (!resumen) return;
+
+    filtrosAMedias = guardado;
+    el.avisoBorradorTexto.textContent = resumen;
+    el.avisoBorrador.hidden = false;
     return;
   }
 
+  const restaurada = scoring.restaurarBatalla(guardado);
   if (!restaurada || scoring.estaVacia(restaurada)) return;
 
   aMedias = restaurada;
@@ -989,6 +1010,13 @@ async function buscarLoQueQuedoAMedias() {
 }
 
 function retomar() {
+  if (filtrosAMedias) {
+    const datos = filtrosAMedias;
+    olvidarLoQueQuedoAMedias();
+    vistaFiltros.retomarLoQueQuedoAMedias(datos);
+    return;
+  }
+
   if (!aMedias) return;
 
   batalla = aMedias;
@@ -1002,8 +1030,12 @@ function retomar() {
 
 function olvidarLoQueQuedoAMedias() {
   aMedias = null;
+  filtrosAMedias = null;
   el.avisoBorrador.hidden = true;
 }
+
+/** Lo que hay a medias, sea del tipo que sea. */
+const hayAlgoAMedias = () => !!aMedias || !!filtrosAMedias;
 
 // ── Acciones ───────────────────────────────────────────────────────────────
 
@@ -1012,12 +1044,14 @@ async function empezarBatalla(evento) {
   document.activeElement?.blur?.(); // cierra el teclado de iOS
 
   // Empezar otra encima de una a medias la borraría sin más: mejor preguntar.
-  if (aMedias) {
+  if (hayAlgoAMedias()) {
     const otra = await confirmar({
       titulo: '¿Empezar otra batalla?',
-      texto: `Se perderá ${todosLosNombres(aMedias.batalleros)}, que dejaste a medias.`,
+      texto: aMedias
+        ? `Se perderá ${todosLosNombres(aMedias.batalleros)}, que dejaste a medias.`
+        : 'Se perderán los filtros que dejaste a medias.',
       aceptar: 'Empezar otra',
-      cancelar: 'Retomar la de antes',
+      cancelar: 'Retomar lo de antes',
     });
     if (!otra) {
       retomar();

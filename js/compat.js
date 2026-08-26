@@ -27,7 +27,13 @@ const TRAMO_UNICO = 't1';
 
 /** Deja un registro en el esquema de hoy, venga de donde venga. */
 export function alDia(registro) {
-  return aTramos(aVariosBatalleros(registro) ?? registro) ?? registro;
+  // Unos filtros no pasan por ninguna de las dos traducciones: son de otro tipo.
+  if (registro?.tipo === 'filtros') return registro;
+
+  const puesto = aTramos(aVariosBatalleros(registro) ?? registro) ?? registro;
+
+  // Todo lo guardado antes de que hubiera filtros era una batalla.
+  return puesto?.tipo ? puesto : { ...puesto, tipo: 'batalla' };
 }
 
 /**

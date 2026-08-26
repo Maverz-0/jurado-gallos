@@ -147,6 +147,7 @@ export async function guardarBatalla({ batalleros, tramos, puntuaciones }) {
   const registro = {
     id: nuevoId(),
     fecha: new Date().toISOString(),
+    tipo: 'batalla',
     batalleros: batalleros.map(({ id, nombre, total, replica }) => ({
       id,
       nombre,
@@ -172,7 +173,28 @@ export async function guardarBatalla({ batalleros, tramos, puntuaciones }) {
 }
 
 /**
- * Todas las batallas, de la más reciente a la más antigua. Recorre el índice
+ * Guarda unos filtros enteros: participantes, jurados y notas. Se guarda el
+ * estado completo, no la tabla ya resuelta, para poder reabrirlos y seguir
+ * añadiéndoles jurados más tarde.
+ *
+ * Con `id` sobrescribe los que ya estaban; sin él, crea unos nuevos.
+ */
+export async function guardarFiltros(filtros, id = null) {
+  const registro = {
+    ...filtros,
+    id: id ?? nuevoId(),
+    fecha: filtros.fecha ?? new Date().toISOString(),
+    tipo: 'filtros',
+    cursor: null,
+    marcada: null,
+  };
+
+  await conTransaccion(ALMACEN, 'readwrite', (almacen) => almacen.put(registro));
+  return registro;
+}
+
+/**
+ * Todo lo guardado, de lo más reciente a lo más antiguo. Recorre el índice
  * por fecha hacia atrás, así que el orden lo pone la base de datos y no hace
  * falta ordenar nada después.
  */
@@ -246,29 +268,10 @@ export async function importarBatallas(batallas) {
  * Apunta la batalla que se está puntuando. Se llama en cada nota, así que hace
  * lo mínimo: una escritura sobre una única entrada, sin leer nada antes.
  */
-export async function guardarBorrador({
-  batalleros,
-  tramos,
-  puntuaciones,
-  cursor,
-}) {
-  const borrador = {
-    batalleros: batalleros.map(({ id, nombre }) => ({ id, nombre })),
-    tramos: tramos.map(({ id, modalidad, intervenciones, replica }) => ({
-      id,
-      modalidad,
-      intervenciones,
-      replica,
-    })),
-    cursor: { tramo: cursor.tramo, batallero: cursor.batallero },
-    puntuaciones: puntuaciones.map(({ tramo, batallero, valor, ts }) => ({
-      tramo,
-      batallero,
-      valor,
-      ts,
-    })),
-    actualizado: new Date().toISOString(),
-  };
+export async function guardarBorrador(estado) {
+  // Se guarda tal cual: aquí puede caer una batalla o unos filtros, y cada uno
+  // sabe releer lo suyo. Lo único que se añade es cuándo se apuntó.
+  const borrador = { ...estado, actualizado: new Date().toISOString() };
 
   await conTransaccion(BORRADOR, 'readwrite', (almacen) =>
     almacen.put(borrador, EN_CURSO)

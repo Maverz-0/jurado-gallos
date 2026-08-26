@@ -26,6 +26,7 @@
   /* Tipografía */
   --fuente: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
     sans-serif;
+  --fuente-firma: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
   --texto-titulo-grande: 34px;
   --texto-titulo-seccion: 22px;
   --texto-cuerpo: 17px;
@@ -261,6 +262,20 @@ button {
   line-height: 1.15;
   margin: var(--e1) 0 var(--e3);
   padding: 0 max(var(--margen), env(safe-area-inset-left));
+}
+
+/* La firma: serif en cursiva, que se despega del resto de la interfaz sin
+   traerse ninguna fuente de fuera. */
+.firma {
+  font-family: var(--fuente-firma);
+  font-style: italic;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--texto-secundario);
+  margin-left: var(--e2);
+  vertical-align: 3px;
+  white-space: nowrap;
 }
 
 /* ── Grupos y tarjetas (estilo Ajustes) ─────────────────────────────────── */
@@ -579,12 +594,14 @@ button {
 
 .participante--arrastrando {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   opacity: 0.9;
 }
 
-.participante--apartada {
-  transition: transform 200ms var(--curva);
+/* Dónde va a caer: una raya, porque con las cabeceras de grupo en medio
+   apartar filas para hacer hueco quedaría torcido. */
+.destino {
+  box-shadow: inset 0 3px 0 -1px var(--azul);
 }
 
 /* ── Tabla de clasificación ─────────────────────────────────────────────── */

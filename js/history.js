@@ -28,7 +28,7 @@ const EN_DETALLE = new Intl.DateTimeFormat('es-ES', {
 
 const $ = (id) => document.getElementById(id);
 
-export function crearHistorial({ empujar, sacar, confirmar }) {
+export function crearHistorial({ empujar, sacar, confirmar, abrirFiltros }) {
   const el = {
     grupoLista: $('grupo-lista'),
     lista: $('lista-batallas'),
@@ -81,13 +81,24 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
     const fila = el.tplBatalla.content.firstElementChild.cloneNode(true);
 
     fila.dataset.id = batalla.id;
-    fila.querySelector('.batalla__nombres').textContent = batalla.batalleros
-      .map((batallero) => batallero.nombre)
-      .join(' · ');
+    fila.dataset.tipo = batalla.tipo ?? 'batalla';
     fila.querySelector('.batalla__fecha').textContent = fechaLegible(
       batalla.fecha,
       EN_LISTA
     );
+
+    if (batalla.tipo === 'filtros') {
+      const cuantos = batalla.participantes.length;
+      fila.querySelector('.batalla__nombres').textContent =
+        `Filtros · ${cuantos === 1 ? '1 participante' : `${cuantos} participantes`}`;
+      fila.querySelector('.batalla__marcador').textContent =
+        `pasan ${batalla.clasifican}`;
+      return fila;
+    }
+
+    fila.querySelector('.batalla__nombres').textContent = batalla.batalleros
+      .map((batallero) => batallero.nombre)
+      .join(' · ');
     fila.querySelector('.batalla__marcador').textContent = batalla.batalleros
       .map((batallero) => comoSeEscribe(batallero.total))
       .join(' · ');
@@ -110,6 +121,12 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
     // Puede haber desaparecido desde que se pintó la lista.
     if (!batalla) {
       await refrescarLista();
+      return;
+    }
+
+    // Unos filtros se abren en su propia pantalla, con su tabla y sus jurados.
+    if (batalla.tipo === 'filtros') {
+      abrirFiltros(batalla);
       return;
     }
 

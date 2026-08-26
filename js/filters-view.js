@@ -11,6 +11,7 @@ import {
   compartirClasificacionImagen,
   compartirClasificacionTexto,
 } from './share.js';
+import { guardarFiltros, guardarBorrador, olvidarBorrador } from './storage.js';
 
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -79,6 +80,8 @@ export function crearVistaFiltros({
     corte: $('corte'),
     leyenda: $('leyenda'),
     btnJurado: $('cbtn-jurado'),
+    btnGuardar: $('cbtn-guardar'),
+    btnAviso: $('cbtn-aviso'),
     btnCompartir: $('cbtn-compartir'),
     ctecla: $('cteclado'),
     ctecladoRejilla: $('cteclado-rejilla'),
@@ -124,6 +127,12 @@ export function crearVistaFiltros({
 
   /** Mientras se rellenan las notas de un jurado: { jurado, participante }. */
   let apuntando = null;
+
+  /** Si vienen del historial o ya se guardaron, su id: guardar sobrescribe. */
+  let guardadoComo = null;
+
+  /** Mientras se reabre algo, el pintado no debe apuntarlo como pendiente. */
+  let restaurando = false;
 
   const nuevoId = () => `p${(contador += 1)}`;
 
@@ -267,6 +276,9 @@ export function crearVistaFiltros({
       ultimoGrupoVisto = grupo.interno;
       asomarElGrupo(grupo.interno);
     }
+
+    // Todos los cambios pasan por aquí, así que basta con apuntar al final.
+    if (!restaurando) apuntarBorrador();
   }
 
   function queToca(sePuede, hayGente) {
@@ -387,6 +399,102 @@ export function crearVistaFiltros({
       el.desplazable.getBoundingClientRect().top;
   }
 
+  // ── Guardar y recuperar ──────────────────────────────────────────────────
+
+  /**
+   * Se apunta lo que hay en cada cambio, igual que en una batalla: una llamada
+   * entrante no puede llevarse por delante unos filtros enteros.
+   */
+  let apuntandoBorrador = false;
+  let quedaPorApuntar = false;
+
+  function apuntarBorrador() {
+    if (!ahora) return;
+
+    if (apuntandoBorrador) {
+      quedaPorApuntar = true;
+      return;
+    }
+
+    apuntandoBorrador = true;
+    guardarBorrador({ tipo: 'filtros', ...ahora, guardadoComo })
+      .catch((error) => console.error('No se han podido apuntar los filtros:', error))
+      .finally(() => {
+        apuntandoBorrador = false;
+        if (quedaPorApuntar) {
+          quedaPorApuntar = false;
+          apuntarBorrador();
+        }
+      });
+  }
+
+  function soltarBorrador() {
+    quedaPorApuntar = false;
+    olvidarBorrador().catch((error) =>
+      console.error('No se ha podido soltar el borrador:', error)
+    );
+  }
+
+  async function guardar() {
+    el.btnGuardar.disabled = true;
+    el.btnAviso.textContent = '';
+
+    try {
+      const registro = await guardarFiltros(ahora, guardadoComo);
+      guardadoComo = registro.id;
+      el.btnAviso.textContent = 'Guardado en Resultados anteriores.';
+      poner(el.btnGuardar, 'Guardar cambios');
+      apuntarBorrador();
+    } catch (error) {
+      console.error('No se han podido guardar los filtros:', error);
+      el.btnAviso.textContent = 'No se ha podido guardar. Inténtalo otra vez.';
+    } finally {
+      el.btnGuardar.disabled = false;
+    }
+  }
+
+  /** Los abre desde el historial, directamente en su tabla. */
+  function abrirGuardados(registro) {
+    const restaurado = filtros.restaurar(registro);
+    if (!restaurado) return;
+
+    ahora = restaurado;
+    guardadoComo = registro.id;
+    editando = false;
+    apuntando = null;
+    ultimoGrupoVisto = null;
+    contador = Math.max(contador, registro.participantes.length);
+
+    restaurando = true;
+    montarTeclado();
+    pintar({ seguirElGrupo: false });
+    poner(el.btnGuardar, 'Guardar cambios');
+    el.btnAviso.textContent = '';
+    pintarTabla();
+    restaurando = false;
+
+    empujar('vista-clasificacion');
+  }
+
+  /** Retoma lo que quedó a medias, en la pantalla de votar. */
+  function retomarLoQueQuedoAMedias(datos) {
+    const restaurado = filtros.restaurar(datos);
+    if (!restaurado) return false;
+
+    ahora = restaurado;
+    guardadoComo = datos.guardadoComo ?? null;
+    editando = false;
+    apuntando = null;
+    ultimoGrupoVisto = null;
+    contador = Math.max(contador, datos.participantes.length);
+
+    montarTeclado();
+    poner(el.btnGuardar, guardadoComo ? 'Guardar cambios' : 'Guardar');
+    pintar();
+    empujar('vista-filtros');
+    return true;
+  }
+
   // ── Clasificación ────────────────────────────────────────────────────────
 
   function terminar() {
@@ -475,6 +583,7 @@ export function crearVistaFiltros({
 
     pintarLeyenda(conTotal);
     pintarTecladoDeJurado();
+    if (!restaurando) apuntarBorrador();
   }
 
   function pintarLeyenda(conTotal) {
@@ -693,7 +802,9 @@ export function crearVistaFiltros({
     }
 
     ahora = null;
+    guardadoComo = null;
     plantilla.aspirantes = [];
+    soltarBorrador();
     pintarPreparacion();
     volverAlaRaiz();
   }
@@ -703,9 +814,13 @@ export function crearVistaFiltros({
   let arrastre = null;
 
   /**
-   * El nombre y su fila de votos viven en columnas distintas, así que hay que
-   * moverlos a la vez o se desalinean. Como todas las filas miden lo mismo,
-   * basta con dividir el recorrido entre el alto de una para saber a dónde va.
+   * El arrastre cruza los grupos, no sólo reordena dentro del suyo. Entre unos
+   * y otros hay cabeceras, así que las filas no están a intervalos regulares y
+   * no vale dividir el recorrido entre un alto: hay que medir dónde está cada
+   * una y quedarse con la más cercana al dedo.
+   *
+   * Por lo mismo tampoco se aparta nada para hacer hueco (quedaría torcido con
+   * las cabeceras en medio): el sitio de destino se marca con una raya.
    */
   function empezarArrastre(evento) {
     const agarre = evento.target.closest('.mando__agarre');
@@ -713,33 +828,38 @@ export function crearVistaFiltros({
     evento.preventDefault();
 
     const etiqueta = agarre.closest('.pista__etiqueta--participante');
-    const bloque = etiqueta?.closest('.bloque');
-    if (!bloque) return;
+    if (!etiqueta) return;
 
-    const etiquetas = [...bloque.querySelectorAll('.pista__etiqueta--participante')];
-    const filas = [...bloque.querySelectorAll('.pista__fila--participante')];
-    const desde = etiquetas.indexOf(etiqueta);
+    const orden = filtros.enOrdenDeVoto(ahora);
+    const desde = orden.findIndex((x) => x.participante.id === etiqueta.dataset.id);
     if (desde < 0) return;
 
+    // Dónde está cada fila ahora mismo, para comparar contra el dedo.
+    const sitios = orden.map((x) => {
+      const suya = el.bloques.querySelector(
+        `.pista__etiqueta--participante[data-id="${x.participante.id}"]`
+      );
+      const caja = suya.getBoundingClientRect();
+      return { ...x, centro: caja.top + caja.height / 2, nodo: suya };
+    });
+
     arrastre = {
-      etiquetas,
-      filas,
+      orden: sitios,
       desde,
       hasta: desde,
-      alto: etiqueta.getBoundingClientRect().height + 4,
       y0: evento.clientY,
       agarre,
       puntero: evento.pointerId,
       id: etiqueta.dataset.id,
+      etiqueta,
+      fila: el.bloques.querySelector(
+        `.pista__fila--participante[data-id="${etiqueta.dataset.id}"]`
+      ),
     };
 
-    for (const grupo of [etiquetas, filas]) {
-      grupo.forEach((nodo, i) => {
-        nodo.classList.add(
-          i === desde ? 'participante--arrastrando' : 'participante--apartada'
-        );
-      });
-    }
+    arrastre.etiqueta.classList.add('participante--arrastrando');
+    arrastre.fila?.classList.add('participante--arrastrando');
+    marcarDestino(desde);
 
     agarre.setPointerCapture(evento.pointerId);
     agarre.addEventListener('pointermove', moverArrastre);
@@ -750,41 +870,67 @@ export function crearVistaFiltros({
   function moverArrastre(evento) {
     if (!arrastre) return;
 
-    const { etiquetas, filas, desde, alto } = arrastre;
     const recorrido = evento.clientY - arrastre.y0;
-    const hasta = Math.min(
-      etiquetas.length - 1,
-      Math.max(0, desde + Math.round(recorrido / alto))
-    );
-    arrastre.hasta = hasta;
+    arrastre.etiqueta.style.transform = `translateY(${recorrido}px)`;
+    if (arrastre.fila) arrastre.fila.style.transform = `translateY(${recorrido}px)`;
 
-    const desplazar = (nodos) =>
-      nodos.forEach((nodo, i) => {
-        if (i === desde) {
-          nodo.style.transform = `translateY(${recorrido}px)`;
-          return;
-        }
-        let aparta = 0;
-        if (desde < hasta && i > desde && i <= hasta) aparta = -alto;
-        else if (desde > hasta && i >= hasta && i < desde) aparta = alto;
-        nodo.style.transform = aparta ? `translateY(${aparta}px)` : '';
-      });
+    // La fila cuyo centro queda más cerca del dedo es el destino.
+    const donde = evento.clientY;
+    let hasta = 0;
+    let masCerca = Infinity;
 
-    desplazar(etiquetas);
-    desplazar(filas);
+    arrastre.orden.forEach((sitio, i) => {
+      const distancia = Math.abs(sitio.centro - donde);
+      if (distancia < masCerca) {
+        masCerca = distancia;
+        hasta = i;
+      }
+    });
+
+    if (hasta !== arrastre.hasta) {
+      arrastre.hasta = hasta;
+      marcarDestino(hasta);
+    }
+  }
+
+  function marcarDestino(indice) {
+    for (const nodo of el.bloques.querySelectorAll('.destino')) {
+      nodo.classList.remove('destino');
+    }
+    if (indice === arrastre.desde) return;
+
+    const sitio = arrastre.orden[indice];
+    sitio?.nodo.classList.add('destino');
+    el.bloques
+      .querySelector(`.pista__fila--participante[data-id="${sitio?.participante.id}"]`)
+      ?.classList.add('destino');
   }
 
   function soltarArrastre() {
     if (!arrastre) return;
 
-    const { desde, hasta, agarre, puntero, id } = arrastre;
+    const { desde, hasta, agarre, puntero, id, orden } = arrastre;
     agarre.releasePointerCapture?.(puntero);
     agarre.removeEventListener('pointermove', moverArrastre);
     agarre.removeEventListener('pointerup', soltarArrastre);
     agarre.removeEventListener('pointercancel', soltarArrastre);
     arrastre = null;
 
-    if (desde !== hasta) ahora = filtros.moverParticipante(ahora, id, hasta);
+    if (desde !== hasta) {
+      const meta = orden[hasta];
+      // La posición dentro del grupo de destino, contando ya sin el arrastrado.
+      const enEseGrupo = orden.filter(
+        (x) => x.grupo === meta.grupo && x.participante.id !== id
+      );
+      const sitio = enEseGrupo.findIndex(
+        (x) => x.participante.id === meta.participante.id
+      );
+
+      ahora = filtros.moverParticipante(ahora, id, {
+        grupo: meta.grupo,
+        hasta: sitio < 0 ? enEseGrupo.length : sitio + (hasta > desde ? 1 : 0),
+      });
+    }
 
     // Repintar deja las filas limpias de clases y transforms.
     el.bloques.replaceChildren();
@@ -886,6 +1032,7 @@ export function crearVistaFiltros({
   });
 
   el.btnJurado.addEventListener('click', anadirJurado);
+  el.btnGuardar.addEventListener('click', guardar);
 
   el.btnCompartir.addEventListener('click', () => {
     compartir(actaDeLaClasificacion(), {
@@ -992,7 +1139,16 @@ export function crearVistaFiltros({
   pintarPreparacion();
 
   return {
-    hayFiltrosEnCurso: () => !!ahora,
-    losDeAhora: () => ahora,
+    abrirGuardados,
+    retomarLoQueQuedoAMedias,
+    /** Para el aviso del inicio, sin tener que restaurarlos del todo. */
+    resumirLoQueQuedoAMedias(datos) {
+      const restaurado = filtros.restaurar(datos);
+      if (!restaurado || restaurado.puntuaciones.length === 0) return null;
+
+      const cuantos = restaurado.participantes.length;
+      const cuantas = restaurado.puntuaciones.length;
+      return `Dejaste a medias unos filtros de ${cuantos} participantes, con ${cuantas === 1 ? '1 nota' : `${cuantas} notas`}.`;
+    },
   };
 }

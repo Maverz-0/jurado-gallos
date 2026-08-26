@@ -139,7 +139,12 @@ grupo.
   al último grupo incompleto o abre uno nuevo, y también se le puede meter a la
   fuerza en uno lleno.
 - **Editar** saca los mandos de quitar y arrastrar. Fuera de ese modo no hay
-  nada que tocar sin querer junto a los cuadritos.
+  nada que tocar sin querer junto a los cuadritos. El arrastre cruza grupos: se
+  puede cambiar el turno dentro de uno o pasar a otro distinto, y las notas
+  viajan con quien se mueve.
+- Se guardan y se recuperan como las batallas: van a **Resultados anteriores**,
+  se pueden reabrir para seguir añadiéndoles jurados, y lo que quede a medias se
+  ofrece al volver a abrir la app.
 
 ### Clasificación
 
