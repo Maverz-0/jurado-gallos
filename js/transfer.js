@@ -7,7 +7,7 @@
  */
 
 import { listarBatallas, importarBatallas } from './storage.js';
-import { A, B } from './scoring.js';
+import { alDia } from './compat.js';
 
 /** Fecha de la última copia de seguridad, en ISO. */
 const CLAVE_ULTIMA_COPIA = 'jurado-gallos:ultima-copia';
@@ -109,7 +109,9 @@ export function crearCopia({ empujar }) {
       return;
     }
 
-    const buenas = crudas.filter(esBatallaValida);
+    // Una copia hecha antes del cambio trae dos batalleros sueltos; se traduce
+    // al vuelo para que las copias viejas se sigan pudiendo restaurar.
+    const buenas = crudas.map(alDia).filter(esBatallaValida);
     const ilegibles = crudas.length - buenas.length;
 
     let resultado;
@@ -189,24 +191,27 @@ function comoTexto(batallas, ahora) {
   ].join('\n');
 
   const cuerpo = batallas.map((batalla, i) => {
-    const linea = (nombre, notas, total) =>
-      `   ${nombre}: ${notas.length ? notas.join(' · ') : 'sin notas'}  =  ${total}`;
+    const nombres = batalla.batalleros.map((batallero) => batallero.nombre);
+
+    const lineas = batalla.batalleros.map((batallero) => {
+      const notas = notasDe(batalla, batallero.id);
+      return `   ${batallero.nombre}: ${notas.length ? notas.join(' · ') : 'sin notas'}  =  ${batallero.total}`;
+    });
 
     return [
-      `${i + 1}. ${batalla.batalleroA} · ${batalla.batalleroB}`,
+      `${i + 1}. ${nombres.join(' · ')}`,
       `   ${FECHA_LARGA.format(new Date(batalla.fecha))}`,
       '',
-      linea(batalla.batalleroA, notasDe(batalla, A), batalla.totalA),
-      linea(batalla.batalleroB, notasDe(batalla, B), batalla.totalB),
+      ...lineas,
     ].join('\n');
   });
 
   return [cabecera, ...cuerpo].join(`\n\n${raya}\n\n`) + '\n';
 }
 
-function notasDe(batalla, batallero) {
+function notasDe(batalla, id) {
   return batalla.puntuaciones
-    .filter((puntuacion) => puntuacion.batallero === batallero)
+    .filter((puntuacion) => puntuacion.batallero === id)
     .map((puntuacion) => puntuacion.valor);
 }
 
@@ -233,28 +238,35 @@ function descargar(contenido, nombre, tipo) {
 // ── Validación de lo que llega de fuera ────────────────────────────────────
 
 function esBatallaValida(batalla) {
-  return (
-    !!batalla &&
-    typeof batalla === 'object' &&
-    typeof batalla.id === 'string' &&
-    batalla.id.length > 0 &&
-    typeof batalla.fecha === 'string' &&
-    !Number.isNaN(Date.parse(batalla.fecha)) &&
-    typeof batalla.batalleroA === 'string' &&
-    typeof batalla.batalleroB === 'string' &&
-    Number.isFinite(batalla.totalA) &&
-    Number.isFinite(batalla.totalB) &&
-    Array.isArray(batalla.puntuaciones) &&
-    batalla.puntuaciones.every(esPuntuacionValida)
+  if (!batalla || typeof batalla !== 'object') return false;
+  if (typeof batalla.id !== 'string' || batalla.id.length === 0) return false;
+  if (typeof batalla.fecha !== 'string') return false;
+  if (Number.isNaN(Date.parse(batalla.fecha))) return false;
+  if (!Array.isArray(batalla.batalleros)) return false;
+  if (batalla.batalleros.length < 2) return false;
+  if (!batalla.batalleros.every(esBatalleroValido)) return false;
+  if (!Array.isArray(batalla.puntuaciones)) return false;
+
+  const ids = new Set(batalla.batalleros.map((batallero) => batallero.id));
+  if (ids.size !== batalla.batalleros.length) return false;
+
+  return batalla.puntuaciones.every(
+    (puntuacion) =>
+      !!puntuacion &&
+      typeof puntuacion === 'object' &&
+      ids.has(puntuacion.batallero) &&
+      Number.isInteger(puntuacion.valor)
   );
 }
 
-function esPuntuacionValida(puntuacion) {
+function esBatalleroValido(batallero) {
   return (
-    !!puntuacion &&
-    typeof puntuacion === 'object' &&
-    (puntuacion.batallero === 'A' || puntuacion.batallero === 'B') &&
-    Number.isInteger(puntuacion.valor)
+    !!batallero &&
+    typeof batallero === 'object' &&
+    typeof batallero.id === 'string' &&
+    batallero.id.length > 0 &&
+    typeof batallero.nombre === 'string' &&
+    Number.isFinite(batallero.total)
   );
 }
 

@@ -1,7 +1,8 @@
 # Jurado de gallos
 
-App para puntuar batallas de gallos en directo, ronda a ronda. Pensada para
-usarse desde el iPhone, instalada en la pantalla de inicio.
+App para puntuar batallas de gallos en directo, intervención a intervención,
+con entre 2 y 10 batalleros. Pensada para usarse desde el iPhone, instalada en
+la pantalla de inicio.
 
 **https://maverz-0.github.io/jurado-gallos/**
 
@@ -19,6 +20,16 @@ python -m http.server 8080
 
 Y abrir <http://127.0.0.1:8080/>. Vale cualquier servidor estático; `127.0.0.1`
 cuenta como contexto seguro, así que el service worker se registra igual.
+
+**Al tocar código, ojo con el service worker.** Va primero a la caché, así que
+seguirá sirviendo la versión anterior por mucho que recargues. Mientras
+desarrollas, lo más rápido es limpiarlo desde la consola del navegador:
+
+```js
+for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+for (const n of await caches.keys()) await caches.delete(n);
+location.reload();
+```
 
 ## Desplegarla
 
@@ -60,11 +71,33 @@ js/
   storage.js    la única parte que conoce IndexedDB
   history.js    resultados anteriores
   transfer.js   exportar e importar
+  compat.js     traducción del esquema viejo, el de sólo dos batalleros
 ```
 
 `scoring.js` no toca el DOM ni lee el reloj: recibe un estado y devuelve otro.
 `storage.js` es la única frontera con IndexedDB, de modo que cambiar el
 almacenamiento por uno en la nube es reescribir ese archivo y nada más.
+
+## Batalleros y modalidad
+
+Se preparan en la pantalla de inicio: entre 2 y 10, reordenables arrastrando
+por el agarre de la derecha. El orden que quede es el turno de intervención.
+
+Puntuando, el cursor pasa solo al siguiente y del último vuelve al primero;
+tocando un marcador se lleva a quien sea. Cada intervención aparece como un
+cuadrito en la fila de su batallero, y tocar uno lo marca para sustituirlo con
+la siguiente tecla.
+
+La **modalidad dinámica** es la única por ahora: los cuadritos van saliendo
+según se meten votos, sin número fijo de intervenciones.
+
+### El esquema de datos ha cambiado
+
+Antes una batalla eran dos batalleros sueltos (`batalleroA`, `totalA`…) y ahora
+es una lista. La conversión vive en `compat.js` y se aplica en dos sitios: al
+subir de versión la base de datos, y al importar un `.json` exportado antes del
+cambio. Los identificadores `A` y `B` se conservan, así que las puntuaciones
+antiguas siguen apuntando a quien apuntaban.
 
 ## La batalla en curso
 

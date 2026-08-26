@@ -7,7 +7,6 @@
  */
 
 import { listarBatallas, obtenerBatalla, borrarBatalla } from './storage.js';
-import { A } from './scoring.js';
 
 const EN_LISTA = new Intl.DateTimeFormat('es-ES', {
   day: 'numeric',
@@ -36,16 +35,14 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
     avisoHistorial: $('aviso-historial'),
 
     fecha: $('detalle-fecha'),
-    aNombre: $('detalle-a-nombre'),
-    aTotal: $('detalle-a-total'),
-    bNombre: $('detalle-b-nombre'),
-    bTotal: $('detalle-b-total'),
+    totales: $('detalle-totales'),
     secuencia: $('detalle-secuencia'),
     btnBorrar: $('btn-borrar-batalla'),
     avisoDetalle: $('aviso-detalle'),
 
     tplBatalla: $('tpl-batalla'),
     tplPaso: $('tpl-paso'),
+    tplResultado: $('tpl-resultado'),
   };
 
   /** Batalla que se está mirando en el detalle. */
@@ -83,14 +80,16 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
     const fila = el.tplBatalla.content.firstElementChild.cloneNode(true);
 
     fila.dataset.id = batalla.id;
-    fila.querySelector('.batalla__nombres').textContent =
-      `${batalla.batalleroA} · ${batalla.batalleroB}`;
+    fila.querySelector('.batalla__nombres').textContent = batalla.batalleros
+      .map((batallero) => batallero.nombre)
+      .join(' · ');
     fila.querySelector('.batalla__fecha').textContent = fechaLegible(
       batalla.fecha,
       EN_LISTA
     );
-    fila.querySelector('.batalla__marcador').textContent =
-      `${batalla.totalA} – ${batalla.totalB}`;
+    fila.querySelector('.batalla__marcador').textContent = batalla.batalleros
+      .map((batallero) => batallero.total)
+      .join(' · ');
 
     return fila;
   }
@@ -120,17 +119,26 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
 
   function pintarDetalle(batalla) {
     el.fecha.textContent = fechaLegible(batalla.fecha, EN_DETALLE);
-    el.aNombre.textContent = batalla.batalleroA;
-    el.aTotal.textContent = batalla.totalA;
-    el.bNombre.textContent = batalla.batalleroB;
-    el.bTotal.textContent = batalla.totalB;
+
+    el.totales.replaceChildren(
+      ...batalla.batalleros.map((batallero) => {
+        const linea = el.tplResultado.content.firstElementChild.cloneNode(true);
+        linea.querySelector('.resultado__nombre').textContent = batallero.nombre;
+        linea.querySelector('.resultado__total').textContent = batallero.total;
+        return linea;
+      })
+    );
+
+    const porId = new Map(
+      batalla.batalleros.map((batallero) => [batallero.id, batallero.nombre])
+    );
 
     el.secuencia.replaceChildren(
       ...batalla.puntuaciones.map((puntuacion, i) => {
         const paso = el.tplPaso.content.firstElementChild.cloneNode(true);
         paso.querySelector('.paso__numero').textContent = `${i + 1}`;
         paso.querySelector('.paso__nombre').textContent =
-          puntuacion.batallero === A ? batalla.batalleroA : batalla.batalleroB;
+          porId.get(puntuacion.batallero) ?? '—';
         paso.querySelector('.paso__valor').textContent = puntuacion.valor;
         return paso;
       })
@@ -145,7 +153,7 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
 
     const seguro = await confirmar({
       titulo: '¿Borrar la batalla?',
-      texto: `Se borrará ${abierta.batalleroA} · ${abierta.batalleroB} y su puntuación. No se puede deshacer.`,
+      texto: `Se borrará ${abierta.batalleros.map((b) => b.nombre).join(' · ')} y su puntuación. No se puede deshacer.`,
       aceptar: 'Borrar',
       cancelar: 'Conservar',
     });

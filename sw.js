@@ -6,7 +6,7 @@
  * desde la caché y no verán el cambio nunca.
  */
 
-const CACHE = 'jurado-gallos-v2';
+const CACHE = 'jurado-gallos-v3';
 
 /** Todo lo que hace falta para arrancar. Rutas relativas: esto vive en un
     subdirectorio de github.io, donde una ruta absoluta se saldría del sitio. */
@@ -20,6 +20,7 @@ const RECURSOS = [
   './js/storage.js',
   './js/history.js',
   './js/transfer.js',
+  './js/compat.js',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',

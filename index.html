@@ -29,40 +29,22 @@
         <div class="vista__cuerpo">
           <form class="grupo" id="form-nueva">
             <p class="grupo__encabezado">Batalleros</p>
-            <div class="tarjeta">
-              <div class="fila">
-                <label class="fila__etiqueta" for="nombre-a">A</label>
-                <input
-                  class="fila__campo"
-                  id="nombre-a"
-                  type="text"
-                  placeholder="Batallero A"
-                  autocomplete="off"
-                  autocapitalize="words"
-                  autocorrect="off"
-                  spellcheck="false"
-                  enterkeyhint="next"
-                  maxlength="40"
-                />
-              </div>
-              <div class="fila">
-                <label class="fila__etiqueta" for="nombre-b">B</label>
-                <input
-                  class="fila__campo"
-                  id="nombre-b"
-                  type="text"
-                  placeholder="Batallero B"
-                  autocomplete="off"
-                  autocapitalize="words"
-                  autocorrect="off"
-                  spellcheck="false"
-                  enterkeyhint="go"
-                  maxlength="40"
-                />
-              </div>
+            <div class="tarjeta" id="lista-batalleros"></div>
+
+            <div class="tarjeta tarjeta--aparte">
+              <button class="fila fila--enlace fila--accion" type="button" id="btn-anadir">
+                <span class="signo" aria-hidden="true">
+                  <svg viewBox="0 0 22 22" focusable="false">
+                    <path d="M11 5v12M5 11h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="fila__titulo fila__titulo--ancho">Añadir batallero</span>
+              </button>
             </div>
-            <p class="grupo__pie">
-              Si dejas un nombre en blanco se usará «Batallero A» o «Batallero B».
+
+            <p class="grupo__pie" id="pie-batalleros">
+              Arrastra por la derecha para cambiar el orden. Los nombres en
+              blanco se numeran solos.
             </p>
 
             <button class="boton boton--principal" type="submit">
@@ -139,22 +121,18 @@
         </header>
 
         <div class="vista__cuerpo vista__cuerpo--puntuacion">
-          <div class="marcadores" role="group" aria-label="Marcadores">
-            <button class="marcador" type="button" id="marcador-a" aria-pressed="true">
-              <span class="marcador__nombre" id="marcador-a-nombre">Batallero A</span>
-              <span class="marcador__total tabular" id="marcador-a-total">0</span>
-              <span class="marcador__notas" id="marcador-a-notas">0 notas</span>
-              <span class="marcador__secuencia" id="marcador-a-secuencia"></span>
-            </button>
-            <button class="marcador" type="button" id="marcador-b" aria-pressed="false">
-              <span class="marcador__nombre" id="marcador-b-nombre">Batallero B</span>
-              <span class="marcador__total tabular" id="marcador-b-total">0</span>
-              <span class="marcador__notas" id="marcador-b-notas">0 notas</span>
-              <span class="marcador__secuencia" id="marcador-b-secuencia"></span>
-            </button>
-          </div>
+          <div class="marcadores" id="marcadores" role="group" aria-label="Marcadores"></div>
 
-          <p class="turno" aria-live="polite" id="turno">Puntuando a Batallero A</p>
+          <p class="turno" aria-live="polite" id="turno"></p>
+
+          <!-- Intervenciones: los nombres se quedan fijos a la izquierda y los
+               votos se deslizan en horizontal, todas las filas a la vez. -->
+          <div class="pista" id="pista">
+            <div class="pista__etiquetas" id="pista-etiquetas"></div>
+            <div class="pista__carril" id="pista-carril">
+              <div class="pista__filas" id="pista-filas"></div>
+            </div>
+          </div>
         </div>
 
         <div class="teclado" id="teclado">
@@ -214,31 +192,7 @@
         </header>
 
         <div class="vista__cuerpo">
-          <div class="grupo">
-            <div class="tarjeta">
-              <div class="resultado">
-                <span class="resultado__nombre" id="final-a-nombre">Batallero A</span>
-                <span class="resultado__total tabular" id="final-a-total">0</span>
-              </div>
-              <div class="fila fila--detalle">
-                <span class="fila__etiqueta fila__etiqueta--suelta">Notas</span>
-                <span class="fila__valor" id="final-a-secuencia">—</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="grupo">
-            <div class="tarjeta">
-              <div class="resultado">
-                <span class="resultado__nombre" id="final-b-nombre">Batallero B</span>
-                <span class="resultado__total tabular" id="final-b-total">0</span>
-              </div>
-              <div class="fila fila--detalle">
-                <span class="fila__etiqueta fila__etiqueta--suelta">Notas</span>
-                <span class="fila__valor" id="final-b-secuencia">—</span>
-              </div>
-            </div>
-          </div>
+          <div id="final-batalleros"></div>
 
           <button class="boton boton--principal" type="button" id="btn-guardar">
             Guardar batalla
@@ -311,16 +265,7 @@
         <div class="vista__cuerpo">
           <p class="grupo__encabezado" id="detalle-fecha"></p>
           <div class="grupo">
-            <div class="tarjeta">
-              <div class="resultado">
-                <span class="resultado__nombre" id="detalle-a-nombre"></span>
-                <span class="resultado__total tabular" id="detalle-a-total"></span>
-              </div>
-              <div class="resultado">
-                <span class="resultado__nombre" id="detalle-b-nombre"></span>
-                <span class="resultado__total tabular" id="detalle-b-total"></span>
-              </div>
-            </div>
+            <div class="tarjeta" id="detalle-totales"></div>
           </div>
 
           <div class="grupo">
@@ -426,6 +371,73 @@
     </div>
 
     <!-- Plantillas de las filas que se generan desde JavaScript. -->
+    <template id="tpl-batallero">
+      <div class="fila batallero">
+        <button class="signo signo--quitar" type="button" aria-label="Quitar batallero">
+          <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <circle cx="11" cy="11" r="9.2" fill="currentColor" />
+            <path d="M6.6 11h8.8" fill="none" stroke="var(--superficie)" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <input
+          class="fila__campo batallero__nombre"
+          type="text"
+          autocomplete="off"
+          autocapitalize="words"
+          autocorrect="off"
+          spellcheck="false"
+          enterkeyhint="next"
+          maxlength="40"
+        />
+        <button class="agarre" type="button" aria-label="Mantener pulsado y arrastrar para reordenar">
+          <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <path d="M4 7.5h14M4 11h14M4 14.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+    </template>
+
+    <template id="tpl-marcador">
+      <button class="marcador" type="button">
+        <span class="marcador__nombre"></span>
+        <span class="marcador__total tabular"></span>
+      </button>
+    </template>
+
+    <template id="tpl-etiqueta">
+      <span class="pista__etiqueta"></span>
+    </template>
+
+    <template id="tpl-fila-votos">
+      <div class="pista__fila"></div>
+    </template>
+
+    <template id="tpl-voto">
+      <button class="voto tabular" type="button"></button>
+    </template>
+
+    <template id="tpl-resultado">
+      <div class="resultado">
+        <span class="resultado__nombre"></span>
+        <span class="resultado__total tabular"></span>
+      </div>
+    </template>
+
+    <template id="tpl-final">
+      <div class="grupo">
+        <div class="tarjeta">
+          <div class="resultado">
+            <span class="resultado__nombre"></span>
+            <span class="resultado__total tabular"></span>
+          </div>
+          <div class="fila fila--detalle">
+            <span class="fila__etiqueta fila__etiqueta--suelta">Notas</span>
+            <span class="fila__valor"></span>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <template id="tpl-batalla">
       <button class="fila fila--enlace batalla" type="button">
         <span class="batalla__quien">

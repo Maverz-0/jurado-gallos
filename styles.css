@@ -45,6 +45,9 @@
   --radio-tecla: 12px;
   --radio-alerta: 14px;
 
+  /* Lado del cuadrito de cada intervención, y alto de fila de la pista. */
+  --alto-voto: 38px;
+
   /* Movimiento */
   --curva: cubic-bezier(0.32, 0.72, 0, 1);
   --transicion-vista: 340ms;
@@ -398,6 +401,98 @@ button {
   word-break: break-word;
 }
 
+/* ── Lista de batalleros ────────────────────────────────────────────────── */
+
+.tarjeta--aparte {
+  margin-top: var(--e2);
+}
+
+.batallero {
+  gap: var(--e2);
+  background: var(--superficie);
+}
+
+.batallero__nombre {
+  min-width: 0;
+}
+
+/* Círculos de más y de menos, como en las listas de Ajustes. */
+.signo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--azul);
+  transition: opacity var(--transicion-pulsacion) ease-out;
+}
+
+.signo svg {
+  width: 22px;
+  height: 22px;
+}
+
+.signo--quitar {
+  color: var(--rojo);
+}
+
+.signo:active:not(:disabled) {
+  opacity: 0.4;
+}
+
+.signo:disabled {
+  color: var(--texto-terciario);
+  cursor: default;
+}
+
+/* El agarre necesita quedarse el gesto: si no, el dedo haría scroll. */
+.agarre {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 40px;
+  margin-right: calc(var(--e2) * -1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--texto-terciario);
+  touch-action: none;
+  cursor: grab;
+}
+
+.agarre svg {
+  width: 22px;
+  height: 22px;
+}
+
+.batallero--arrastrando {
+  position: relative;
+  z-index: 2;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.batallero--arrastrando .agarre {
+  color: var(--texto-secundario);
+  cursor: grabbing;
+}
+
+/* Mientras una fila viaja, la de debajo no debe pintar su separador encima. */
+.batallero--arrastrando::before,
+.batallero--apartada::before {
+  opacity: 0;
+}
+
+.batallero--apartada {
+  transition: transform 200ms var(--curva);
+}
+
 /* ── Botones ────────────────────────────────────────────────────────────── */
 
 .boton {
@@ -436,10 +531,12 @@ button {
 
 /* ── Marcadores ─────────────────────────────────────────────────────────── */
 
+/* Las columnas y el tamaño de las cifras los pone app.js según cuántos
+   batalleros haya: con dos caben enormes, con diez tienen que encogerse. */
 .marcadores {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--e3);
+  grid-template-columns: repeat(var(--columnas, 2), minmax(0, 1fr));
+  gap: var(--e2);
   align-items: stretch;
 }
 
@@ -448,11 +545,12 @@ button {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--e1);
-  padding: var(--e4);
+  padding: var(--e3);
   border: 2px solid transparent;
   border-radius: var(--radio-tarjeta);
   background: var(--superficie);
   text-align: left;
+  min-width: 0;
   transition: border-color var(--transicion-pulsacion) ease-out,
     transform var(--transicion-pulsacion) ease-out;
 }
@@ -466,7 +564,7 @@ button {
 }
 
 .marcador__nombre {
-  font-size: var(--texto-nota);
+  font-size: var(--texto-menudo);
   font-weight: 600;
   color: var(--texto-secundario);
   text-transform: uppercase;
@@ -488,35 +586,95 @@ button {
   letter-spacing: -1px;
 }
 
-.marcador__notas {
-  font-size: var(--texto-nota);
-  color: var(--texto-secundario);
-}
-
-.marcador__secuencia {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--e1);
-  margin-top: var(--e1);
-}
-
-.nota {
-  display: inline-block;
-  min-width: 20px;
-  padding: 2px var(--e1);
-  border-radius: 6px;
-  background: var(--relleno);
-  font-size: var(--texto-menudo);
-  font-variant-numeric: tabular-nums;
-  color: var(--texto-secundario);
-  text-align: center;
-}
-
 .turno {
   font-size: var(--texto-nota);
   color: var(--texto-secundario);
   text-align: center;
   margin: 0;
+}
+
+/* ── Pista de intervenciones ────────────────────────────────────────────── */
+
+/* Dos columnas: los nombres se quedan quietos y los votos se deslizan. Las dos
+   listas comparten alto de fila y separación, que es lo que las mantiene
+   alineadas sin tener que medir nada. */
+.pista {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 var(--e2);
+  align-items: start;
+  min-height: 0;
+}
+
+.pista__etiquetas,
+.pista__filas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+}
+
+.pista__carril {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.pista__etiqueta,
+.pista__fila {
+  display: flex;
+  align-items: center;
+  height: var(--alto-voto);
+}
+
+.pista__fila {
+  gap: var(--e1);
+  width: max-content;
+}
+
+.pista__etiqueta {
+  max-width: 84px;
+  font-size: var(--texto-menudo);
+  color: var(--texto-secundario);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pista__etiqueta--activo {
+  color: var(--azul);
+  font-weight: 600;
+}
+
+.voto {
+  flex: none;
+  width: var(--alto-voto);
+  height: var(--alto-voto);
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--superficie);
+  font-size: 17px;
+  font-weight: 600;
+  transition: transform var(--transicion-pulsacion) ease-out,
+    border-color var(--transicion-pulsacion) ease-out;
+}
+
+.voto:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* El cuadrito que se va a sustituir con la siguiente tecla. */
+.voto--marcado {
+  border-color: var(--azul);
+  color: var(--azul);
+}
+
+/* Hueco de quien todavía no ha intervenido en esa ronda. */
+.voto--vacio {
+  background: var(--relleno);
+  cursor: default;
 }
 
 /* ── Teclado numérico ───────────────────────────────────────────────────── */
