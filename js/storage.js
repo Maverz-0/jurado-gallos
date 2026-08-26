@@ -7,18 +7,26 @@
  *
  * Esquema de una batalla guardada:
  *   { id, fecha, batalleroA, batalleroB, puntuaciones, totalA, totalB }
+ *
+ * Aparte hay un segundo almacén con una sola entrada: la batalla que se está
+ * puntuando ahora mismo, para que sobreviva a que la app se cierre a mitad.
  */
 
 const DB_NOMBRE = 'jurado-gallos';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const ALMACEN = 'batallas';
+const BORRADOR = 'borrador';
+
+/** El borrador es siempre uno solo, así que va bajo una clave fija. */
+const EN_CURSO = 'en-curso';
 
 let promesaDB = null;
 
 /**
  * Abre la base de datos una sola vez y reutiliza la conexión.
- * El índice por fecha se crea ya aquí para poder listar el historial ordenado
- * sin tener que migrar el esquema más adelante.
+ *
+ * Cada almacén se crea sólo si falta, de modo que subir de versión añade lo
+ * nuevo sin tocar las batallas que ya estén guardadas.
  */
 function abrirDB() {
   if (promesaDB) return promesaDB;
@@ -28,9 +36,14 @@ function abrirDB() {
 
     solicitud.onupgradeneeded = () => {
       const db = solicitud.result;
+
       if (!db.objectStoreNames.contains(ALMACEN)) {
         const almacen = db.createObjectStore(ALMACEN, { keyPath: 'id' });
         almacen.createIndex('fecha', 'fecha');
+      }
+
+      if (!db.objectStoreNames.contains(BORRADOR)) {
+        db.createObjectStore(BORRADOR);
       }
     };
 
@@ -54,12 +67,12 @@ function abrirDB() {
  * sólo cuando la transacción ha terminado de verdad: en una escritura, que la
  * solicitud tenga éxito todavía no garantiza que el dato esté en disco.
  */
-async function conTransaccion(modo, trabajo) {
+async function conTransaccion(nombre, modo, trabajo) {
   const db = await abrirDB();
 
   return new Promise((resolver, rechazar) => {
-    const transaccion = db.transaction(ALMACEN, modo);
-    const almacen = transaccion.objectStore(ALMACEN);
+    const transaccion = db.transaction(nombre, modo);
+    const almacen = transaccion.objectStore(nombre);
 
     let solicitud;
     try {
@@ -107,7 +120,7 @@ export async function guardarBatalla({
     totalB,
   };
 
-  await conTransaccion('readwrite', (almacen) => almacen.add(registro));
+  await conTransaccion(ALMACEN, 'readwrite', (almacen) => almacen.add(registro));
   return registro;
 }
 
@@ -139,11 +152,11 @@ export async function listarBatallas() {
 
 /** Una batalla por su id, o undefined si ya no está. */
 export function obtenerBatalla(id) {
-  return conTransaccion('readonly', (almacen) => almacen.get(id));
+  return conTransaccion(ALMACEN, 'readonly', (almacen) => almacen.get(id));
 }
 
 export async function borrarBatalla(id) {
-  await conTransaccion('readwrite', (almacen) => almacen.delete(id));
+  await conTransaccion(ALMACEN, 'readwrite', (almacen) => almacen.delete(id));
 }
 
 /**
@@ -178,6 +191,48 @@ export async function importarBatallas(batallas) {
     transaccion.onerror = () => rechazar(transaccion.error);
     transaccion.onabort = () => rechazar(transaccion.error);
   });
+}
+
+// ── Batalla en curso ───────────────────────────────────────────────────────
+
+/**
+ * Apunta la batalla que se está puntuando. Se llama en cada nota, así que hace
+ * lo mínimo: una escritura sobre una única entrada, sin leer nada antes.
+ */
+export async function guardarBorrador({
+  batalleroA,
+  batalleroB,
+  puntuaciones,
+  cursor,
+}) {
+  const borrador = {
+    batalleroA,
+    batalleroB,
+    cursor,
+    puntuaciones: puntuaciones.map(({ batallero, valor, ts }) => ({
+      batallero,
+      valor,
+      ts,
+    })),
+    actualizado: new Date().toISOString(),
+  };
+
+  await conTransaccion(BORRADOR, 'readwrite', (almacen) =>
+    almacen.put(borrador, EN_CURSO)
+  );
+}
+
+/** La batalla que quedó a medias, o undefined si no hay ninguna. */
+export function leerBorrador() {
+  return conTransaccion(BORRADOR, 'readonly', (almacen) =>
+    almacen.get(EN_CURSO)
+  );
+}
+
+export async function olvidarBorrador() {
+  await conTransaccion(BORRADOR, 'readwrite', (almacen) =>
+    almacen.delete(EN_CURSO)
+  );
 }
 
 /**

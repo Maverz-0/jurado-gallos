@@ -101,3 +101,34 @@ export function estaVacia(batalla) {
 export function esNotaValida(valor) {
   return Number.isInteger(valor) && valor >= NOTA_MIN && valor <= NOTA_MAX;
 }
+
+/**
+ * Reconstruye una batalla a partir de lo que se dejó apuntado al cerrarse la
+ * app. Devuelve null si lo guardado no cuadra: más vale no ofrecer nada que
+ * ofrecer una batalla a medio restaurar con notas que no estaban.
+ */
+export function restaurarBatalla(datos) {
+  if (!datos || typeof datos !== 'object') return null;
+  if (!Array.isArray(datos.puntuaciones)) return null;
+  if (!datos.puntuaciones.every(esPuntuacionGuardada)) return null;
+
+  return {
+    batalleroA: typeof datos.batalleroA === 'string' ? datos.batalleroA : '',
+    batalleroB: typeof datos.batalleroB === 'string' ? datos.batalleroB : '',
+    puntuaciones: datos.puntuaciones.map(({ batallero, valor, ts }) => ({
+      batallero,
+      valor,
+      ts,
+    })),
+    cursor: datos.cursor === B ? B : A,
+  };
+}
+
+function esPuntuacionGuardada(puntuacion) {
+  return (
+    !!puntuacion &&
+    typeof puntuacion === 'object' &&
+    (puntuacion.batallero === A || puntuacion.batallero === B) &&
+    esNotaValida(puntuacion.valor)
+  );
+}

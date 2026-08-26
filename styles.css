@@ -607,9 +607,9 @@ button {
   display: none;
 }
 
-/* La versión nueva sí lleva el color de acento: es lo único que pide que
-   hagas algo ahora mismo. */
-.recordatorio--version {
+/* Lo que pide hacer algo ahora mismo lleva el color de acento; lo que sólo
+   recuerda algo se queda en gris. */
+.recordatorio--destacado {
   background: color-mix(in srgb, var(--azul) 12%, transparent);
 }
 
@@ -621,7 +621,7 @@ button {
   margin: 0;
 }
 
-.recordatorio--version .recordatorio__texto {
+.recordatorio--destacado .recordatorio__texto {
   color: var(--texto);
 }
 

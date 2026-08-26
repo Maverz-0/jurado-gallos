@@ -66,6 +66,16 @@ js/
 `storage.js` es la única frontera con IndexedDB, de modo que cambiar el
 almacenamiento por uno en la nube es reescribir ese archivo y nada más.
 
+## La batalla en curso
+
+Se apunta en cada nota, en un almacén aparte de IndexedDB, para que una llamada
+entrante o un cierre a mitad no se lleven por delante una batalla entera. Al
+abrir la app, si quedó algo a medias, el inicio ofrece retomarlo.
+
+Nunca hay más de una escritura en vuelo: si llegan notas mientras se está
+guardando, se anota que hay que repetir al terminar. Puntuar no espera nunca a
+la base de datos.
+
 ## Copias de seguridad
 
 En el iPhone una web no puede quedarse conectada a una carpeta del sistema, así

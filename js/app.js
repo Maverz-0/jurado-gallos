@@ -8,7 +8,13 @@
  */
 
 import * as scoring from './scoring.js';
-import { guardarBatalla, pedirPersistencia } from './storage.js';
+import {
+  guardarBatalla,
+  pedirPersistencia,
+  guardarBorrador,
+  leerBorrador,
+  olvidarBorrador,
+} from './storage.js';
 import { crearHistorial } from './history.js';
 import { crearCopia } from './transfer.js';
 
@@ -34,6 +40,9 @@ const el = {
   btnAvisoCopia: $('btn-aviso-copia'),
   avisoVersion: $('aviso-version'),
   btnActualizar: $('btn-actualizar'),
+  avisoBorrador: $('aviso-borrador'),
+  avisoBorradorTexto: $('aviso-borrador-texto'),
+  btnRetomar: $('btn-retomar'),
 
   btnCancelar: $('btn-cancelar'),
   btnTerminar: $('btn-terminar'),
@@ -90,6 +99,9 @@ const finalDe = {
 
 /** Batalla en curso, o null si no hay ninguna. */
 let batalla = null;
+
+/** Batalla que quedó a medias de una sesión anterior, aún sin retomar. */
+let aMedias = null;
 
 // ── Navegación ─────────────────────────────────────────────────────────────
 
@@ -163,9 +175,13 @@ const enCima = (id) => pila[pila.length - 1] === id;
 
 // ── Nombres ────────────────────────────────────────────────────────────────
 
-function nombreDe(bat) {
-  const propio = bat === scoring.A ? batalla.batalleroA : batalla.batalleroB;
+function nombreDe(bat, cual = batalla) {
+  const propio = bat === scoring.A ? cual.batalleroA : cual.batalleroB;
   return propio || NOMBRES_POR_DEFECTO[bat];
+}
+
+function comoSeLlaman(cual) {
+  return `${nombreDe(scoring.A, cual)} · ${nombreDe(scoring.B, cual)}`;
 }
 
 // ── Pintado ────────────────────────────────────────────────────────────────
@@ -255,31 +271,124 @@ function confirmar({ titulo, texto, aceptar, cancelar }) {
 const historial = crearHistorial({ empujar, sacar, confirmar });
 const copia = crearCopia({ empujar });
 
+// ── Batalla en curso a salvo ───────────────────────────────────────────────
+
+/**
+ * La batalla en curso se apunta en cada cambio, para que una llamada entrante
+ * o un cierre a mitad no se lleven por delante una batalla entera.
+ *
+ * Nunca hay más de una escritura en vuelo: si llegan notas mientras se está
+ * guardando, se anota que hay que repetir al terminar. Así puntuar deprisa no
+ * encola decenas de transacciones, y lo último que se pulsó siempre acaba
+ * escrito. El pintado va por delante y no espera a esto.
+ */
+let apuntando = false;
+let quedaPorApuntar = false;
+
+function apuntarBorrador() {
+  if (!batalla) return;
+
+  if (apuntando) {
+    quedaPorApuntar = true;
+    return;
+  }
+
+  apuntando = true;
+  guardarBorrador(batalla)
+    .catch((error) => console.error('No se ha podido apuntar la batalla:', error))
+    .finally(() => {
+      apuntando = false;
+      if (quedaPorApuntar) {
+        quedaPorApuntar = false;
+        apuntarBorrador();
+      }
+    });
+}
+
+function soltarBorrador() {
+  quedaPorApuntar = false;
+  olvidarBorrador().catch((error) =>
+    console.error('No se ha podido soltar el borrador:', error)
+  );
+}
+
+/** Al arrancar: si quedó algo a medias, se ofrece sin imponer nada. */
+async function buscarLoQueQuedoAMedias() {
+  let restaurada;
+  try {
+    restaurada = scoring.restaurarBatalla(await leerBorrador());
+  } catch (error) {
+    console.error('No se ha podido leer la batalla a medias:', error);
+    return;
+  }
+
+  if (!restaurada || scoring.estaVacia(restaurada)) return;
+
+  aMedias = restaurada;
+  const cuantas = restaurada.puntuaciones.length;
+  el.avisoBorradorTexto.textContent =
+    `Dejaste a medias ${comoSeLlaman(restaurada)}, con ${cuantas === 1 ? '1 nota' : `${cuantas} notas`}.`;
+  el.avisoBorrador.hidden = false;
+}
+
+function retomar() {
+  if (!aMedias) return;
+
+  batalla = aMedias;
+  olvidarLoQueQuedoAMedias();
+  pintarPuntuacion();
+  empujar(PUNTUACION);
+}
+
+function olvidarLoQueQuedoAMedias() {
+  aMedias = null;
+  el.avisoBorrador.hidden = true;
+}
+
 // ── Acciones ───────────────────────────────────────────────────────────────
 
-function empezarBatalla(evento) {
+async function empezarBatalla(evento) {
   evento.preventDefault();
   document.activeElement?.blur?.(); // cierra el teclado de iOS
+
+  // Empezar otra encima de una a medias la borraría sin más: mejor preguntar.
+  if (aMedias) {
+    const otra = await confirmar({
+      titulo: '¿Empezar otra batalla?',
+      texto: `Se perderá ${comoSeLlaman(aMedias)}, que dejaste a medias.`,
+      aceptar: 'Empezar otra',
+      cancelar: 'Retomar la de antes',
+    });
+    if (!otra) {
+      retomar();
+      return;
+    }
+    olvidarLoQueQuedoAMedias();
+  }
 
   batalla = scoring.crearBatalla(el.nombreA.value, el.nombreB.value);
   pintarPuntuacion();
   empujar(PUNTUACION);
+  apuntarBorrador();
 }
 
 function anotar(valor) {
   batalla = scoring.anotar(batalla, valor, Date.now());
   pintarPuntuacion();
+  apuntarBorrador();
 }
 
 function borrar() {
   if (scoring.estaVacia(batalla)) return;
   batalla = scoring.deshacer(batalla);
   pintarPuntuacion();
+  apuntarBorrador();
 }
 
 function apuntarA(bat) {
   batalla = scoring.moverCursor(batalla, bat);
   pintarPuntuacion();
+  apuntarBorrador();
 }
 
 async function cancelar() {
@@ -331,6 +440,7 @@ async function guardar() {
 
 function soltarBatalla() {
   batalla = null;
+  soltarBorrador();
   el.formNueva.reset();
   volverAlaRaiz();
 }
@@ -365,6 +475,7 @@ el.btnCerrarCopia.addEventListener('click', sacar);
 
 el.btnCopia.addEventListener('click', () => copia.abrir());
 el.btnAvisoCopia.addEventListener('click', () => copia.abrir());
+el.btnRetomar.addEventListener('click', retomar);
 
 marcador[scoring.A].caja.addEventListener('click', () => apuntarA(scoring.A));
 marcador[scoring.B].caja.addEventListener('click', () => apuntarA(scoring.B));
@@ -434,4 +545,5 @@ function anunciarSiEspera(trabajador) {
 
 pintarPila({ bloquear: false });
 pedirPersistencia();
+buscarLoQueQuedoAMedias();
 vigilarVersiones();
