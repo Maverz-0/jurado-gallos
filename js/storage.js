@@ -6,16 +6,21 @@
  * Todo lo que sale de aquí son promesas y objetos planos.
  *
  * Esquema de una batalla guardada:
- *   { id, fecha, batalleros: [{ id, nombre, total }], puntuaciones }
+ *   {
+ *     id, fecha,
+ *     batalleros: [{ id, nombre, total, replica }],
+ *     tramos:     [{ id, modalidad, intervenciones, replica }],
+ *     puntuaciones: [{ tramo, batallero, valor, ts }]
+ *   }
  *
  * Aparte hay un segundo almacén con una sola entrada: la batalla que se está
  * puntuando ahora mismo, para que sobreviva a que la app se cierre a mitad.
  */
 
-import { aVariosBatalleros } from './compat.js';
+import { alDia } from './compat.js';
 
 const DB_NOMBRE = 'jurado-gallos';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const ALMACEN = 'batallas';
 const BORRADOR = 'borrador';
 
@@ -50,10 +55,12 @@ function abrirDB() {
         db.createObjectStore(BORRADOR);
       }
 
-      // v3: las batallas dejan de ser de dos y pasan a llevar una lista de
-      // batalleros. Las ya guardadas se convierten aquí mismo.
-      if (evento.oldVersion > 0 && evento.oldVersion < 3) {
-        pasarADosOMas(transaccion);
+      // v3: de dos batalleros sueltos a una lista.
+      // v4: de una tirada de puntuaciones a una secuencia de tramos.
+      // compat.js sabe traducir desde cualquiera de los dos, así que basta
+      // con pasar por aquí una sola vez venga de la versión que venga.
+      if (evento.oldVersion > 0 && evento.oldVersion < 4) {
+        ponerAlDia(transaccion);
       }
     };
 
@@ -100,26 +107,29 @@ async function conTransaccion(nombre, modo, trabajo) {
 }
 
 /**
- * Convierte lo guardado con el esquema de dos batalleros al de lista. Se hace
- * dentro de la transacción de actualización, así que o se convierte todo o no
- * sube la versión: nunca queda la base a medias.
+ * Traduce lo guardado al esquema de hoy. Se hace dentro de la transacción de
+ * actualización, así que o se convierte todo o no sube la versión: nunca queda
+ * la base a medias.
  */
-function pasarADosOMas(transaccion) {
+function ponerAlDia(transaccion) {
   const almacen = transaccion.objectStore(ALMACEN);
   almacen.openCursor().onsuccess = (evento) => {
     const cursor = evento.target.result;
     if (!cursor) return;
 
-    const convertida = aVariosBatalleros(cursor.value);
-    if (convertida) cursor.update(convertida);
+    const convertida = alDia(cursor.value);
+    if (convertida !== cursor.value) cursor.update(convertida);
     cursor.continue();
   };
 
   // La batalla a medias, si la había, se convierte igual para no perderla.
   const borradores = transaccion.objectStore(BORRADOR);
   borradores.get(EN_CURSO).onsuccess = (evento) => {
-    const convertido = aVariosBatalleros(evento.target.result);
-    if (convertido) borradores.put(convertido, EN_CURSO);
+    const guardado = evento.target.result;
+    if (!guardado) return;
+
+    const convertido = alDia(guardado);
+    if (convertido !== guardado) borradores.put(convertido, EN_CURSO);
   };
 }
 
@@ -133,16 +143,24 @@ function nuevoId() {
  * guardado. Recibe el estado en memoria de scoring.js más los totales ya
  * calculados, para no duplicar aquí esa lógica.
  */
-export async function guardarBatalla({ batalleros, puntuaciones }) {
+export async function guardarBatalla({ batalleros, tramos, puntuaciones }) {
   const registro = {
     id: nuevoId(),
     fecha: new Date().toISOString(),
-    batalleros: batalleros.map(({ id, nombre, total }) => ({
+    batalleros: batalleros.map(({ id, nombre, total, replica }) => ({
       id,
       nombre,
       total,
+      replica,
     })),
-    puntuaciones: puntuaciones.map(({ batallero, valor, ts }) => ({
+    tramos: tramos.map(({ id, modalidad, intervenciones, replica }) => ({
+      id,
+      modalidad,
+      intervenciones,
+      replica,
+    })),
+    puntuaciones: puntuaciones.map(({ tramo, batallero, valor, ts }) => ({
+      tramo,
       batallero,
       valor,
       ts,
@@ -228,11 +246,23 @@ export async function importarBatallas(batallas) {
  * Apunta la batalla que se está puntuando. Se llama en cada nota, así que hace
  * lo mínimo: una escritura sobre una única entrada, sin leer nada antes.
  */
-export async function guardarBorrador({ batalleros, puntuaciones, cursor }) {
+export async function guardarBorrador({
+  batalleros,
+  tramos,
+  puntuaciones,
+  cursor,
+}) {
   const borrador = {
     batalleros: batalleros.map(({ id, nombre }) => ({ id, nombre })),
-    cursor,
-    puntuaciones: puntuaciones.map(({ batallero, valor, ts }) => ({
+    tramos: tramos.map(({ id, modalidad, intervenciones, replica }) => ({
+      id,
+      modalidad,
+      intervenciones,
+      replica,
+    })),
+    cursor: { tramo: cursor.tramo, batallero: cursor.batallero },
+    puntuaciones: puntuaciones.map(({ tramo, batallero, valor, ts }) => ({
+      tramo,
       batallero,
       valor,
       ts,

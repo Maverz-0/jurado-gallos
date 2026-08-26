@@ -193,25 +193,53 @@ function comoTexto(batallas, ahora) {
   const cuerpo = batallas.map((batalla, i) => {
     const nombres = batalla.batalleros.map((batallero) => batallero.nombre);
 
-    const lineas = batalla.batalleros.map((batallero) => {
-      const notas = notasDe(batalla, batallero.id);
-      return `   ${batallero.nombre}: ${notas.length ? notas.join(' · ') : 'sin notas'}  =  ${batallero.total}`;
-    });
+    // Un bloque por tramo, para que la réplica se lea aparte de lo anterior.
+    const porTramos = batalla.tramos.flatMap((tramo) => [
+      `   ${comoSeLlamaElTramo(tramo)}`,
+      ...batalla.batalleros.map((batallero) => {
+        const notas = notasDe(batalla, tramo.id, batallero.id);
+        const suma = notas.reduce((total, nota) => total + nota, 0);
+        return `     ${batallero.nombre}: ${notas.length ? notas.join(' · ') : 'sin notas'}  =  ${suma}`;
+      }),
+      '',
+    ]);
+
+    const totales = batalla.batalleros.map(
+      (batallero) =>
+        `   ${batallero.nombre}: ${batallero.total}` +
+        (batallero.replica ? `   (réplica ${batallero.replica})` : '')
+    );
 
     return [
       `${i + 1}. ${nombres.join(' · ')}`,
       `   ${FECHA_LARGA.format(new Date(batalla.fecha))}`,
       '',
-      ...lineas,
+      ...porTramos,
+      '   TOTAL',
+      ...totales,
     ].join('\n');
   });
 
   return [cabecera, ...cuerpo].join(`\n\n${raya}\n\n`) + '\n';
 }
 
-function notasDe(batalla, id) {
+function comoSeLlamaElTramo(tramo) {
+  const base =
+    tramo.modalidad === 'nxn'
+      ? `${tramo.intervenciones}×${tramo.intervenciones}`
+      : tramo.modalidad === 'minuto'
+        ? `Minuto · ${tramo.intervenciones}`
+        : 'Dinámica';
+
+  return tramo.replica ? `Réplica · ${base}` : base;
+}
+
+function notasDe(batalla, idTramo, idBatallero) {
   return batalla.puntuaciones
-    .filter((puntuacion) => puntuacion.batallero === id)
+    .filter(
+      (puntuacion) =>
+        puntuacion.tramo === idTramo && puntuacion.batallero === idBatallero
+    )
     .map((puntuacion) => puntuacion.valor);
 }
 
@@ -245,17 +273,33 @@ function esBatallaValida(batalla) {
   if (!Array.isArray(batalla.batalleros)) return false;
   if (batalla.batalleros.length < 2) return false;
   if (!batalla.batalleros.every(esBatalleroValido)) return false;
+  if (!Array.isArray(batalla.tramos) || batalla.tramos.length === 0) return false;
+  if (!batalla.tramos.every(esTramoValido)) return false;
   if (!Array.isArray(batalla.puntuaciones)) return false;
 
   const ids = new Set(batalla.batalleros.map((batallero) => batallero.id));
   if (ids.size !== batalla.batalleros.length) return false;
+
+  const tramos = new Set(batalla.tramos.map((tramo) => tramo.id));
+  if (tramos.size !== batalla.tramos.length) return false;
 
   return batalla.puntuaciones.every(
     (puntuacion) =>
       !!puntuacion &&
       typeof puntuacion === 'object' &&
       ids.has(puntuacion.batallero) &&
+      tramos.has(puntuacion.tramo) &&
       Number.isInteger(puntuacion.valor)
+  );
+}
+
+function esTramoValido(tramo) {
+  return (
+    !!tramo &&
+    typeof tramo === 'object' &&
+    typeof tramo.id === 'string' &&
+    tramo.id.length > 0 &&
+    typeof tramo.modalidad === 'string'
   );
 }
 

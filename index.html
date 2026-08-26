@@ -44,7 +44,26 @@
 
             <p class="grupo__pie" id="pie-batalleros">
               Arrastra por la derecha para cambiar el orden. Los nombres en
-              blanco se numeran solos.
+              blanco se llaman «Gallo A», «Gallo B»…
+            </p>
+
+            <p class="grupo__encabezado grupo__encabezado--separado">Modalidades</p>
+            <div id="lista-tramos"></div>
+
+            <div class="tarjeta tarjeta--aparte">
+              <button class="fila fila--enlace fila--accion" type="button" id="btn-anadir-tramo">
+                <span class="signo" aria-hidden="true">
+                  <svg viewBox="0 0 22 22" focusable="false">
+                    <path d="M11 5v12M5 11h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="fila__titulo fila__titulo--ancho">Añadir modalidad</span>
+              </button>
+            </div>
+
+            <p class="grupo__pie">
+              Se puntúan en orden, uno detrás de otro. Una batalla puede llevar
+              un 8×8 y después un 4×4.
             </p>
 
             <button class="boton boton--principal" type="submit">
@@ -125,13 +144,17 @@
 
           <p class="turno" aria-live="polite" id="turno"></p>
 
-          <!-- Intervenciones: los nombres se quedan fijos a la izquierda y los
-               votos se deslizan en horizontal, todas las filas a la vez. -->
-          <div class="pista" id="pista">
-            <div class="pista__etiquetas" id="pista-etiquetas"></div>
-            <div class="pista__carril" id="pista-carril">
-              <div class="pista__filas" id="pista-filas"></div>
-            </div>
+          <!-- Un bloque por tramo, uno debajo de otro. Dentro de cada uno los
+               nombres se quedan fijos y los votos se deslizan en horizontal. -->
+          <div class="bloques" id="bloques"></div>
+
+          <div class="anadidos">
+            <button class="anadidos__accion" type="button" id="btn-tramo-en-curso">
+              Añadir modalidad
+            </button>
+            <button class="anadidos__accion" type="button" id="btn-replica">
+              Añadir réplica
+            </button>
           </div>
         </div>
 
@@ -346,6 +369,42 @@
       </section>
     </div>
 
+    <!-- ─────────────────── Elegir una modalidad ───────────────────── -->
+    <div class="velo" id="velo-modalidad" hidden>
+      <div
+        class="hoja"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hoja-titulo"
+      >
+        <h2 class="hoja__titulo" id="hoja-titulo">Añadir modalidad</h2>
+
+        <div class="segmentado" id="hoja-modalidad" role="group" aria-label="Modalidad">
+          <button class="segmentado__opcion" type="button" data-modalidad="dinamica">Dinámica</button>
+          <button class="segmentado__opcion" type="button" data-modalidad="nxn">N×N</button>
+          <button class="segmentado__opcion" type="button" data-modalidad="minuto">Minuto</button>
+        </div>
+
+        <p class="hoja__nota" id="hoja-nota"></p>
+
+        <div class="tarjeta" id="hoja-cuantas">
+          <div class="fila">
+            <span class="fila__titulo fila__titulo--ancho">Intervenciones</span>
+            <div class="contador">
+              <button class="contador__boton" type="button" id="hoja-menos" aria-label="Una menos">−</button>
+              <span class="contador__cifra tabular" id="hoja-numero" aria-live="polite">4</span>
+              <button class="contador__boton" type="button" id="hoja-mas" aria-label="Una más">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hoja__acciones">
+          <button class="boton boton--principal" type="button" id="hoja-aceptar">Añadir</button>
+          <button class="boton boton--suave" type="button" id="hoja-cancelar">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ────────────────────── Diálogo de aviso ────────────────────── -->
     <div class="velo" id="velo" hidden>
       <div
@@ -397,15 +456,58 @@
       </div>
     </template>
 
+    <template id="tpl-tramo">
+      <div class="tramo">
+        <div class="tramo__cabecera">
+          <span class="tramo__titulo"></span>
+          <button class="tramo__quitar" type="button">Quitar</button>
+        </div>
+        <div class="segmentado" role="group" aria-label="Modalidad">
+          <button class="segmentado__opcion" type="button" data-modalidad="dinamica">Dinámica</button>
+          <button class="segmentado__opcion" type="button" data-modalidad="nxn">N×N</button>
+          <button class="segmentado__opcion" type="button" data-modalidad="minuto">Minuto</button>
+        </div>
+        <div class="fila tramo__cuantas">
+          <span class="fila__titulo fila__titulo--ancho">Intervenciones</span>
+          <div class="contador">
+            <button class="contador__boton tramo__menos" type="button" aria-label="Una menos">−</button>
+            <span class="contador__cifra tabular tramo__numero">4</span>
+            <button class="contador__boton tramo__mas" type="button" aria-label="Una más">+</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <template id="tpl-marcador">
       <button class="marcador" type="button">
         <span class="marcador__nombre"></span>
         <span class="marcador__total tabular"></span>
+        <span class="marcador__replica tabular"></span>
       </button>
+    </template>
+
+    <template id="tpl-bloque">
+      <section class="bloque">
+        <p class="bloque__titulo"></p>
+        <div class="pista">
+          <div class="pista__etiquetas">
+            <span class="pista__hueco" aria-hidden="true"></span>
+          </div>
+          <div class="pista__carril">
+            <div class="pista__filas">
+              <div class="pista__ordinales"></div>
+            </div>
+          </div>
+        </div>
+      </section>
     </template>
 
     <template id="tpl-etiqueta">
       <span class="pista__etiqueta"></span>
+    </template>
+
+    <template id="tpl-ordinal">
+      <span class="ordinal"></span>
     </template>
 
     <template id="tpl-fila-votos">

@@ -124,21 +124,30 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
       ...batalla.batalleros.map((batallero) => {
         const linea = el.tplResultado.content.firstElementChild.cloneNode(true);
         linea.querySelector('.resultado__nombre').textContent = batallero.nombre;
-        linea.querySelector('.resultado__total').textContent = batallero.total;
+        linea.querySelector('.resultado__total').textContent = batallero.replica
+          ? `${batallero.total} + ${batallero.replica}`
+          : batallero.total;
         return linea;
       })
     );
 
-    const porId = new Map(
+    const nombreDe = new Map(
       batalla.batalleros.map((batallero) => [batallero.id, batallero.nombre])
     );
+    const tramoDe = new Map(
+      batalla.tramos.map((tramo) => [tramo.id, comoSeLlamaElTramo(tramo)])
+    );
+    const variosTramos = batalla.tramos.length > 1;
 
     el.secuencia.replaceChildren(
       ...batalla.puntuaciones.map((puntuacion, i) => {
         const paso = el.tplPaso.content.firstElementChild.cloneNode(true);
+        const quien = nombreDe.get(puntuacion.batallero) ?? '—';
+        const donde = tramoDe.get(puntuacion.tramo);
+
         paso.querySelector('.paso__numero').textContent = `${i + 1}`;
         paso.querySelector('.paso__nombre').textContent =
-          porId.get(puntuacion.batallero) ?? '—';
+          variosTramos && donde ? `${quien} · ${donde}` : quien;
         paso.querySelector('.paso__valor').textContent = puntuacion.valor;
         return paso;
       })
@@ -185,6 +194,18 @@ export function crearHistorial({ empujar, sacar, confirmar }) {
   el.btnBorrar.addEventListener('click', borrar);
 
   return { abrir };
+}
+
+/** «4×4» para un N×N, y el nombre de la modalidad para el resto. */
+function comoSeLlamaElTramo(tramo) {
+  const base =
+    tramo.modalidad === 'nxn'
+      ? `${tramo.intervenciones}×${tramo.intervenciones}`
+      : tramo.modalidad === 'minuto'
+        ? `Minuto · ${tramo.intervenciones}`
+        : 'Dinámica';
+
+  return tramo.replica ? `Réplica · ${base}` : base;
 }
 
 /** Las fechas se guardan en ISO; aquí se muestran como las lee una persona. */

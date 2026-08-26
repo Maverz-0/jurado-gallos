@@ -25,6 +25,9 @@ const PUNTUACION = 'vista-puntuacion';
 /** Las vistas que salen de la pila se deslizan por encima de las que revelan. */
 const Z_FUERA_DE_PILA = 99;
 
+/** Los gallos sin nombre se llaman por su letra. */
+const LETRAS = 'ABCDEFGHIJ';
+
 /**
  * Cómo se reparten los marcadores según cuántos batalleros haya. Con dos las
  * cifras caben enormes; con diez hay que apretarlas para que sigan viéndose
@@ -39,12 +42,23 @@ const REPARTO = [
   { hasta: 10, columnas: 5, cifra: 'clamp(19px, 5vw, 26px)' },
 ];
 
+/** Lo que hace cada modalidad, dicho para quien la elige. */
+const EXPLICACIONES = {
+  dinamica:
+    'Las intervenciones van saliendo según metes votos, sin número fijo.',
+  nxn: 'Número fijo de intervenciones, alternando entre los gallos.',
+  minuto:
+    'Número fijo de intervenciones. Se puntúa a un gallo entero antes de pasar al siguiente.',
+};
+
 const $ = (id) => document.getElementById(id);
 
 const el = {
   formNueva: $('form-nueva'),
   lista: $('lista-batalleros'),
   btnAnadir: $('btn-anadir'),
+  listaTramos: $('lista-tramos'),
+  btnAnadirTramo: $('btn-anadir-tramo'),
   btnHistorial: $('btn-historial'),
   btnCopia: $('btn-copia'),
   btnAvisoCopia: $('btn-aviso-copia'),
@@ -60,9 +74,9 @@ const el = {
   teclado: $('teclado'),
   turno: $('turno'),
   marcadores: $('marcadores'),
-  pistaCarril: $('pista-carril'),
-  pistaEtiquetas: $('pista-etiquetas'),
-  pistaFilas: $('pista-filas'),
+  bloques: $('bloques'),
+  btnTramoEnCurso: $('btn-tramo-en-curso'),
+  btnReplica: $('btn-replica'),
 
   btnVolver: $('btn-volver'),
   btnGuardar: $('btn-guardar'),
@@ -80,9 +94,23 @@ const el = {
   alertaSi: $('alerta-si'),
   alertaNo: $('alerta-no'),
 
+  veloModalidad: $('velo-modalidad'),
+  hojaTitulo: $('hoja-titulo'),
+  hojaModalidad: $('hoja-modalidad'),
+  hojaNota: $('hoja-nota'),
+  hojaCuantas: $('hoja-cuantas'),
+  hojaNumero: $('hoja-numero'),
+  hojaMenos: $('hoja-menos'),
+  hojaMas: $('hoja-mas'),
+  hojaAceptar: $('hoja-aceptar'),
+  hojaCancelar: $('hoja-cancelar'),
+
   tplBatallero: $('tpl-batallero'),
+  tplTramo: $('tpl-tramo'),
   tplMarcador: $('tpl-marcador'),
+  tplBloque: $('tpl-bloque'),
   tplEtiqueta: $('tpl-etiqueta'),
+  tplOrdinal: $('tpl-ordinal'),
   tplFilaVotos: $('tpl-fila-votos'),
   tplVoto: $('tpl-voto'),
   tplFinal: $('tpl-final'),
@@ -94,22 +122,37 @@ let batalla = null;
 /** Batalla que quedó a medias de una sesión anterior, aún sin retomar. */
 let aMedias = null;
 
-/** Los batalleros que se están preparando en la pantalla de inicio. */
+/** Lo que se está preparando en la pantalla de inicio. */
 let plantilla = [];
+let plantillaTramos = [];
 let contadorIds = 0;
 
 // ── Nombres ────────────────────────────────────────────────────────────────
 
-/** Un nombre en blanco se numera por la posición que ocupa. */
+function porDefecto(i) {
+  return `Gallo ${LETRAS[i] ?? i + 1}`;
+}
+
 function comoSeLlama(batalleros, id) {
   const i = batalleros.findIndex((batallero) => batallero.id === id);
-  return i < 0 ? '' : batalleros[i].nombre || `Batallero ${i + 1}`;
+  return i < 0 ? '' : batalleros[i].nombre || porDefecto(i);
 }
 
 function todosLosNombres(batalleros) {
   return batalleros
     .map((batallero) => comoSeLlama(batalleros, batallero.id))
     .join(' · ');
+}
+
+/** «4×4» para un N×N, y el nombre de la modalidad para el resto. */
+function comoSeLlamaElTramo(tramo) {
+  const base =
+    tramo.modalidad === 'nxn'
+      ? `${tramo.intervenciones}×${tramo.intervenciones}`
+      : scoring.MODALIDADES[tramo.modalidad].etiqueta +
+        (tramo.intervenciones ? ` · ${tramo.intervenciones}` : '');
+
+  return tramo.replica ? `Réplica · ${base}` : base;
 }
 
 // ── Navegación ─────────────────────────────────────────────────────────────
@@ -182,17 +225,49 @@ function volverAlaRaiz() {
 
 const enCima = (id) => pila[pila.length - 1] === id;
 
+// ── Utilidades de pintado ──────────────────────────────────────────────────
+
+/**
+ * Todo el pintado de la puntuación reaprovecha los nodos que ya están puestos
+ * en vez de rehacerlos. Con diez batalleros y varios tramos son cientos de
+ * cuadritos, y esto se ejecuta en cada tecla: crearlos de nuevo cada vez se
+ * notaría justo donde no puede notarse.
+ */
+const clonar = (plantillaHTML) =>
+  plantillaHTML.content.firstElementChild.cloneNode(true);
+
+function ajustarHijos(contenedor, cuantos, crear) {
+  while (contenedor.children.length > cuantos) {
+    contenedor.lastElementChild.remove();
+  }
+  while (contenedor.children.length < cuantos) {
+    contenedor.append(crear());
+  }
+}
+
+function poner(nodo, texto) {
+  const valor = String(texto);
+  if (nodo.textContent !== valor) nodo.textContent = valor;
+}
+
 // ── Preparar los batalleros ────────────────────────────────────────────────
 
-function nuevoBatallero() {
+function nuevoId(prefijo) {
   contadorIds += 1;
-  return { id: `b${contadorIds}`, nombre: '' };
+  return `${prefijo}${contadorIds}`;
 }
 
 function reiniciarPlantilla() {
   contadorIds = 0;
-  plantilla = [nuevoBatallero(), nuevoBatallero()];
+  plantilla = [
+    { id: nuevoId('b'), nombre: '' },
+    { id: nuevoId('b'), nombre: '' },
+  ];
+  plantillaTramos = [
+    scoring.crearTramo({ id: nuevoId('t'), modalidad: scoring.MODALIDAD_POR_DEFECTO }),
+  ];
   pintarPlantilla();
+  pintarPlantillaTramos();
 }
 
 function pintarPlantilla() {
@@ -207,12 +282,12 @@ function pintarPlantilla() {
 }
 
 function filaDeBatallero(batallero, i) {
-  const fila = el.tplBatallero.content.firstElementChild.cloneNode(true);
+  const fila = clonar(el.tplBatallero);
   fila.dataset.id = batallero.id;
 
   const campo = fila.querySelector('.batallero__nombre');
   campo.value = batallero.nombre;
-  campo.placeholder = `Batallero ${i + 1}`;
+  campo.placeholder = porDefecto(i);
   // Sólo se apunta el nombre: repintar aquí costaría el foco a media palabra.
   campo.addEventListener('input', () => {
     batallero.nombre = campo.value;
@@ -230,7 +305,7 @@ function filaDeBatallero(batallero, i) {
 
 function anadirBatallero() {
   if (plantilla.length >= scoring.MAX_BATALLEROS) return;
-  plantilla.push(nuevoBatallero());
+  plantilla.push({ id: nuevoId('b'), nombre: '' });
   pintarPlantilla();
   el.lista.lastElementChild?.querySelector('.batallero__nombre')?.focus();
 }
@@ -239,6 +314,62 @@ function quitarBatallero(id) {
   if (plantilla.length <= scoring.MIN_BATALLEROS) return;
   plantilla = plantilla.filter((batallero) => batallero.id !== id);
   pintarPlantilla();
+}
+
+// ── Preparar las modalidades ───────────────────────────────────────────────
+
+function pintarPlantillaTramos() {
+  el.listaTramos.replaceChildren(...plantillaTramos.map(filaDeTramo));
+}
+
+function filaDeTramo(tramo, i) {
+  const caja = clonar(el.tplTramo);
+
+  poner(caja.querySelector('.tramo__titulo'), `Tramo ${i + 1}`);
+
+  const quitar = caja.querySelector('.tramo__quitar');
+  quitar.disabled = plantillaTramos.length <= 1;
+  quitar.addEventListener('click', () => {
+    plantillaTramos = plantillaTramos.filter((otro) => otro.id !== tramo.id);
+    pintarPlantillaTramos();
+  });
+
+  for (const opcion of caja.querySelectorAll('.segmentado__opcion')) {
+    const cual = opcion.dataset.modalidad;
+    opcion.setAttribute('aria-pressed', String(cual === tramo.modalidad));
+    opcion.addEventListener('click', () => {
+      Object.assign(
+        tramo,
+        scoring.crearTramo({
+          id: tramo.id,
+          modalidad: cual,
+          intervenciones: tramo.intervenciones ?? scoring.INTERVENCIONES_POR_DEFECTO,
+        })
+      );
+      pintarPlantillaTramos();
+    });
+  }
+
+  const cuantas = caja.querySelector('.tramo__cuantas');
+  cuantas.hidden = tramo.intervenciones == null;
+
+  if (tramo.intervenciones != null) {
+    const cifra = caja.querySelector('.tramo__numero');
+    poner(cifra, tramo.intervenciones);
+
+    const mover = (paso) => {
+      tramo.intervenciones = scoring.acotar(tramo.intervenciones + paso);
+      pintarPlantillaTramos();
+    };
+    caja.querySelector('.tramo__menos').addEventListener('click', () => mover(-1));
+    caja.querySelector('.tramo__mas').addEventListener('click', () => mover(1));
+    caja.querySelector('.tramo__menos').disabled =
+      tramo.intervenciones <= scoring.MIN_INTERVENCIONES;
+    caja.querySelector('.tramo__mas').disabled =
+      tramo.intervenciones >= scoring.MAX_INTERVENCIONES;
+  }
+
+  return caja;
 }
 
 // ── Reordenar arrastrando ──────────────────────────────────────────────────
@@ -322,32 +453,10 @@ function soltarArrastre() {
 
 // ── Pintado de la puntuación ───────────────────────────────────────────────
 
-/**
- * Todo el pintado de la puntuación reaprovecha los nodos que ya están puestos
- * en vez de rehacerlos. Con diez batalleros y una pista larga son cientos de
- * cuadritos, y esto se ejecuta en cada tecla: crearlos de nuevo cada vez se
- * notaría justo donde no puede notarse.
- */
-const clonar = (plantillaHTML) =>
-  plantillaHTML.content.firstElementChild.cloneNode(true);
-
-function ajustarHijos(contenedor, cuantos, crear) {
-  while (contenedor.children.length > cuantos) {
-    contenedor.lastElementChild.remove();
-  }
-  while (contenedor.children.length < cuantos) {
-    contenedor.append(crear());
-  }
-}
-
-function poner(nodo, texto) {
-  const valor = String(texto);
-  if (nodo.textContent !== valor) nodo.textContent = valor;
-}
-
 function pintarMarcadores() {
   const cuantos = batalla.batalleros.length;
   const reparto = REPARTO.find((r) => cuantos <= r.hasta) ?? REPARTO.at(-1);
+  const conReplica = scoring.hayReplica(batalla);
 
   el.marcadores.style.setProperty('--columnas', reparto.columnas);
   el.marcadores.style.setProperty('--texto-marcador', reparto.cifra);
@@ -355,7 +464,7 @@ function pintarMarcadores() {
 
   batalla.batalleros.forEach((batallero, i) => {
     const caja = el.marcadores.children[i];
-    const activo = batalla.cursor === batallero.id;
+    const activo = batalla.cursor.batallero === batallero.id;
 
     caja.dataset.id = batallero.id;
     caja.classList.toggle('marcador--activo', activo);
@@ -368,88 +477,134 @@ function pintarMarcadores() {
       caja.querySelector('.marcador__total'),
       scoring.total(batalla, batallero.id)
     );
+    poner(
+      caja.querySelector('.marcador__replica'),
+      conReplica ? `réplica ${scoring.totalDeReplica(batalla, batallero.id)}` : ''
+    );
   });
 }
 
 /**
- * La pista de intervenciones. Todas las filas se pintan del mismo ancho, con
- * huecos donde alguien todavía no ha intervenido, para que las columnas
- * queden a la vista unas debajo de otras.
+ * Un bloque por tramo, uno debajo de otro. Dentro de cada uno, la fila de
+ * ordinales arriba y una fila por gallo, con huecos donde todavía no ha
+ * intervenido para que las columnas queden unas debajo de otras.
  */
-function pintarPista() {
-  const ancho = scoring.intervenciones(batalla);
+function pintarBloques() {
   const cuantos = batalla.batalleros.length;
+  ajustarHijos(el.bloques, batalla.tramos.length, () => clonar(el.tplBloque));
 
-  ajustarHijos(el.pistaEtiquetas, cuantos, () => clonar(el.tplEtiqueta));
-  ajustarHijos(el.pistaFilas, cuantos, () => clonar(el.tplFilaVotos));
+  batalla.tramos.forEach((tramo, t) => {
+    const bloque = el.bloques.children[t];
+    const ancho = scoring.anchoDeTramo(batalla, tramo);
 
-  batalla.batalleros.forEach((batallero, f) => {
-    const nombre = comoSeLlama(batalla.batalleros, batallero.id);
+    bloque.classList.toggle('bloque--replica', tramo.replica);
+    poner(bloque.querySelector('.bloque__titulo'), comoSeLlamaElTramo(tramo));
 
-    const etiqueta = el.pistaEtiquetas.children[f];
-    poner(etiqueta, nombre);
-    etiqueta.classList.toggle(
-      'pista__etiqueta--activo',
-      batalla.cursor === batallero.id
-    );
+    const ordinales = bloque.querySelector('.pista__ordinales');
+    ajustarHijos(ordinales, ancho, () => clonar(el.tplOrdinal));
+    for (let i = 0; i < ancho; i += 1) poner(ordinales.children[i], `${i + 1}ª`);
 
-    const fila = el.pistaFilas.children[f];
-    ajustarHijos(fila, ancho, () => clonar(el.tplVoto));
+    // El primer hijo de cada columna es el hueco y la fila de ordinales.
+    const etiquetas = bloque.querySelector('.pista__etiquetas');
+    const filas = bloque.querySelector('.pista__filas');
+    ajustarHijos(etiquetas, cuantos + 1, () => clonar(el.tplEtiqueta));
+    ajustarHijos(filas, cuantos + 1, () => clonar(el.tplFilaVotos));
 
-    const votos = scoring.votosDe(batalla, batallero.id);
+    batalla.batalleros.forEach((batallero, b) => {
+      const nombre = comoSeLlama(batalla.batalleros, batallero.id);
+      const activa =
+        batalla.cursor.tramo === tramo.id &&
+        batalla.cursor.batallero === batallero.id;
 
-    for (let i = 0; i < ancho; i += 1) {
-      const cuadro = fila.children[i];
-      const voto = votos[i];
+      const etiqueta = etiquetas.children[b + 1];
+      poner(etiqueta, nombre);
+      etiqueta.classList.toggle('pista__etiqueta--activo', activa);
 
-      if (voto) {
-        poner(cuadro, voto.valor);
-        cuadro.dataset.indice = String(voto.indice);
-        cuadro.disabled = false;
-        cuadro.classList.remove('voto--vacio');
-        cuadro.classList.toggle('voto--marcado', batalla.marcada === voto.indice);
-        cuadro.setAttribute(
-          'aria-label',
-          `Intervención ${i + 1} de ${nombre}: ${voto.valor}`
-        );
-      } else {
-        poner(cuadro, '');
-        delete cuadro.dataset.indice;
-        cuadro.disabled = true;
-        cuadro.classList.add('voto--vacio');
-        cuadro.classList.remove('voto--marcado');
-        cuadro.removeAttribute('aria-label');
+      const fila = filas.children[b + 1];
+      fila.classList.toggle('pista__fila--activa', activa);
+      ajustarHijos(fila, ancho, () => clonar(el.tplVoto));
+
+      const votos = scoring.votosDe(batalla, tramo.id, batallero.id);
+
+      for (let i = 0; i < ancho; i += 1) {
+        const cuadro = fila.children[i];
+        const voto = votos[i];
+
+        if (voto) {
+          poner(cuadro, voto.valor);
+          cuadro.dataset.indice = String(voto.indice);
+          delete cuadro.dataset.tramo;
+          delete cuadro.dataset.batallero;
+          cuadro.classList.remove('voto--vacio');
+          cuadro.classList.toggle('voto--marcado', batalla.marcada === voto.indice);
+          cuadro.setAttribute(
+            'aria-label',
+            `${comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: ${voto.valor}`
+          );
+        } else {
+          poner(cuadro, '');
+          delete cuadro.dataset.indice;
+          // Un hueco sirve para llevar el cursor a ese gallo y ese tramo.
+          cuadro.dataset.tramo = tramo.id;
+          cuadro.dataset.batallero = batallero.id;
+          cuadro.classList.add('voto--vacio');
+          cuadro.classList.remove('voto--marcado');
+          cuadro.setAttribute(
+            'aria-label',
+            `${comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: sin puntuar`
+          );
+        }
       }
-    }
+    });
   });
 }
 
 function pintarPuntuacion() {
   pintarMarcadores();
-  pintarPista();
+  pintarBloques();
+
+  const sePuedeAnotar = scoring.puedeAnotar(batalla);
+  for (const tecla of el.teclado.querySelectorAll('[data-nota]')) {
+    tecla.disabled = !sePuedeAnotar;
+  }
 
   el.btnBorrar.disabled = scoring.estaVacia(batalla);
   el.btnTerminar.disabled = scoring.estaVacia(batalla);
-
-  const quien = comoSeLlama(batalla.batalleros, batalla.cursor);
-  el.turno.textContent =
-    batalla.marcada === null
-      ? `Puntuando a ${quien}`
-      : 'Corrigiendo: pulsa un número para sustituirlo';
+  el.turno.textContent = queTocaAhora(sePuedeAnotar);
 }
 
-/** Tras anotar, la pista se va al final para que se vea el último cuadrito. */
+function queTocaAhora(sePuedeAnotar) {
+  if (batalla.marcada !== null) {
+    return 'Corrigiendo: pulsa un número para sustituirlo';
+  }
+  if (!sePuedeAnotar) {
+    return 'Todas las intervenciones puestas. Añade una modalidad o termina.';
+  }
+
+  const quien = comoSeLlama(batalla.batalleros, batalla.cursor.batallero);
+  const tramo = scoring.tramoDe(batalla, batalla.cursor.tramo);
+  const cual = tramo && batalla.tramos.length > 1 ? ` · ${comoSeLlamaElTramo(tramo)}` : '';
+
+  return `Puntuando a ${quien}${cual}`;
+}
+
+/** Tras anotar, la pista del tramo activo se va al final del todo. */
 function asomarElUltimoVoto() {
-  el.pistaCarril.scrollLeft = el.pistaCarril.scrollWidth;
+  const t = batalla.tramos.findIndex((tramo) => tramo.id === batalla.cursor.tramo);
+  const carril = el.bloques.children[t]?.querySelector('.pista__carril');
+  if (carril) carril.scrollLeft = carril.scrollWidth;
 }
 
 function pintarFinal() {
+  const conReplica = scoring.hayReplica(batalla);
+
   el.finalBatalleros.replaceChildren(
     ...batalla.batalleros.map((batallero) => {
       const bloque = clonar(el.tplFinal);
-      const notas = scoring
-        .votosDe(batalla, batallero.id)
-        .map((voto) => voto.valor);
+      const porTramo = batalla.tramos.map(
+        (tramo) =>
+          `${comoSeLlamaElTramo(tramo)}: ${scoring.totalDeTramo(batalla, tramo.id, batallero.id)}`
+      );
 
       bloque.querySelector('.resultado__nombre').textContent = comoSeLlama(
         batalla.batalleros,
@@ -459,9 +614,10 @@ function pintarFinal() {
         batalla,
         batallero.id
       );
-      bloque.querySelector('.fila__valor').textContent = notas.length
-        ? notas.join(' · ')
-        : 'Ninguna';
+      bloque.querySelector('.fila__valor').textContent = porTramo.join('  ·  ');
+      bloque.querySelector('.fila__etiqueta').textContent = conReplica
+        ? 'Tramos (la réplica no suma)'
+        : 'Tramos';
 
       return bloque;
     })
@@ -505,6 +661,80 @@ function confirmar({ titulo, texto, aceptar, cancelar }) {
     el.alertaSi.addEventListener('click', alAceptar);
     el.alertaNo.addEventListener('click', alCancelar);
     document.addEventListener('keydown', alTeclear);
+  });
+}
+
+// ── Hoja para elegir modalidad ─────────────────────────────────────────────
+
+/** Devuelve { modalidad, intervenciones } o null si se cancela. */
+function pedirModalidad({ titulo, aceptar }) {
+  return new Promise((resolver) => {
+    const focoPrevio = document.activeElement;
+    let modalidad = scoring.MODALIDAD_POR_DEFECTO;
+    let cuantas = scoring.INTERVENCIONES_POR_DEFECTO;
+
+    el.hojaTitulo.textContent = titulo;
+    el.hojaAceptar.textContent = aceptar;
+
+    const pintar = () => {
+      for (const opcion of el.hojaModalidad.children) {
+        opcion.setAttribute(
+          'aria-pressed',
+          String(opcion.dataset.modalidad === modalidad)
+        );
+      }
+      el.hojaNota.textContent = EXPLICACIONES[modalidad];
+      el.hojaCuantas.hidden = !scoring.MODALIDADES[modalidad].fija;
+      el.hojaNumero.textContent = cuantas;
+      el.hojaMenos.disabled = cuantas <= scoring.MIN_INTERVENCIONES;
+      el.hojaMas.disabled = cuantas >= scoring.MAX_INTERVENCIONES;
+    };
+
+    const alElegir = (evento) => {
+      const opcion = evento.target.closest('[data-modalidad]');
+      if (!opcion) return;
+      modalidad = opcion.dataset.modalidad;
+      pintar();
+    };
+    const alMenos = () => {
+      cuantas = scoring.acotar(cuantas - 1);
+      pintar();
+    };
+    const alMas = () => {
+      cuantas = scoring.acotar(cuantas + 1);
+      pintar();
+    };
+    const alTeclear = (evento) => {
+      if (evento.key === 'Escape') cerrar(null);
+    };
+
+    const cerrar = (respuesta) => {
+      el.veloModalidad.hidden = true;
+      el.pila.inert = false;
+      el.hojaModalidad.removeEventListener('click', alElegir);
+      el.hojaMenos.removeEventListener('click', alMenos);
+      el.hojaMas.removeEventListener('click', alMas);
+      el.hojaAceptar.removeEventListener('click', alAceptar);
+      el.hojaCancelar.removeEventListener('click', alCancelar);
+      document.removeEventListener('keydown', alTeclear);
+      focoPrevio?.focus?.();
+      resolver(respuesta);
+    };
+
+    const alAceptar = () => cerrar({ modalidad, intervenciones: cuantas });
+    const alCancelar = () => cerrar(null);
+
+    el.hojaModalidad.addEventListener('click', alElegir);
+    el.hojaMenos.addEventListener('click', alMenos);
+    el.hojaMas.addEventListener('click', alMas);
+    el.hojaAceptar.addEventListener('click', alAceptar);
+    el.hojaCancelar.addEventListener('click', alCancelar);
+    document.addEventListener('keydown', alTeclear);
+
+    pintar();
+    el.pila.inert = true;
+    el.veloModalidad.hidden = false;
+    el.hojaAceptar.focus();
   });
 }
 
@@ -607,7 +837,7 @@ async function empezarBatalla(evento) {
     olvidarLoQueQuedoAMedias();
   }
 
-  batalla = scoring.crearBatalla(plantilla);
+  batalla = scoring.crearBatalla(plantilla, plantillaTramos);
   pintarPuntuacion();
   empujar(PUNTUACION);
   apuntarBorrador();
@@ -628,8 +858,8 @@ function borrar() {
   apuntarBorrador();
 }
 
-function apuntarA(id) {
-  batalla = scoring.moverCursor(batalla, id);
+function apuntarA(idTramo, idBatallero) {
+  batalla = scoring.moverCursor(batalla, idTramo, idBatallero);
   pintarPuntuacion();
   apuntarBorrador();
 }
@@ -637,6 +867,40 @@ function apuntarA(id) {
 function marcarVoto(indice) {
   batalla = scoring.marcarVoto(batalla, indice);
   pintarPuntuacion();
+}
+
+async function anadirTramoEnCurso({ replica }) {
+  const elegido = await pedirModalidad({
+    titulo: replica ? 'Añadir réplica' : 'Añadir modalidad',
+    aceptar: replica ? 'Añadir réplica' : 'Añadir',
+  });
+  if (!elegido) return;
+
+  batalla = scoring.anadirTramo(batalla, {
+    id: nuevoId('t'),
+    modalidad: elegido.modalidad,
+    intervenciones: elegido.intervenciones,
+    replica,
+  });
+  pintarPuntuacion();
+  apuntarBorrador();
+}
+
+async function anadirTramoAlaPlantilla() {
+  const elegido = await pedirModalidad({
+    titulo: 'Añadir modalidad',
+    aceptar: 'Añadir',
+  });
+  if (!elegido) return;
+
+  plantillaTramos.push(
+    scoring.crearTramo({
+      id: nuevoId('t'),
+      modalidad: elegido.modalidad,
+      intervenciones: elegido.intervenciones,
+    })
+  );
+  pintarPlantillaTramos();
 }
 
 async function cancelar() {
@@ -675,7 +939,9 @@ async function guardar() {
         id: batallero.id,
         nombre: comoSeLlama(batalla.batalleros, batallero.id),
         total: scoring.total(batalla, batallero.id),
+        replica: scoring.totalDeReplica(batalla, batallero.id),
       })),
+      tramos: batalla.tramos,
       puntuaciones: batalla.puntuaciones,
     });
     soltarBatalla();
@@ -698,6 +964,7 @@ function soltarBatalla() {
 
 el.formNueva.addEventListener('submit', empezarBatalla);
 el.btnAnadir.addEventListener('click', anadirBatallero);
+el.btnAnadirTramo.addEventListener('click', anadirTramoAlaPlantilla);
 el.btnHistorial.addEventListener('click', () => historial.abrir());
 el.btnCopia.addEventListener('click', () => copia.abrir());
 el.btnAvisoCopia.addEventListener('click', () => copia.abrir());
@@ -710,13 +977,26 @@ el.teclado.addEventListener('click', (evento) => {
 
 el.marcadores.addEventListener('click', (evento) => {
   const caja = evento.target.closest('[data-id]');
-  if (caja) apuntarA(caja.dataset.id);
+  if (caja) apuntarA(batalla.cursor.tramo, caja.dataset.id);
 });
 
-el.pistaFilas.addEventListener('click', (evento) => {
-  const cuadro = evento.target.closest('[data-indice]');
-  if (cuadro) marcarVoto(Number(cuadro.dataset.indice));
+el.bloques.addEventListener('click', (evento) => {
+  const cuadro = evento.target.closest('.voto');
+  if (!cuadro) return;
+
+  if (cuadro.dataset.indice !== undefined) {
+    marcarVoto(Number(cuadro.dataset.indice));
+  } else if (cuadro.dataset.tramo) {
+    apuntarA(cuadro.dataset.tramo, cuadro.dataset.batallero);
+  }
 });
+
+el.btnTramoEnCurso.addEventListener('click', () =>
+  anadirTramoEnCurso({ replica: false })
+);
+el.btnReplica.addEventListener('click', () =>
+  anadirTramoEnCurso({ replica: true })
+);
 
 el.btnBorrar.addEventListener('click', borrar);
 el.btnCancelar.addEventListener('click', cancelar);
@@ -730,7 +1010,8 @@ el.btnCerrarCopia.addEventListener('click', sacar);
 
 /** Teclado físico, para poder puntuar cómodo desde el ordenador. */
 document.addEventListener('keydown', (evento) => {
-  if (navegando || !enCima(PUNTUACION) || !el.velo.hidden) return;
+  if (navegando || !enCima(PUNTUACION)) return;
+  if (!el.velo.hidden || !el.veloModalidad.hidden) return;
   if (evento.metaKey || evento.ctrlKey || evento.altKey) return;
 
   if (evento.key >= '0' && evento.key <= '4') {

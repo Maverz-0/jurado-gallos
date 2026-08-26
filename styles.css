@@ -47,6 +47,7 @@
 
   /* Lado del cuadrito de cada intervención, y alto de fila de la pista. */
   --alto-voto: 38px;
+  --alto-ordinal: 15px;
 
   /* Movimiento */
   --curva: cubic-bezier(0.32, 0.72, 0, 1);
@@ -493,6 +494,187 @@ button {
   transition: transform 200ms var(--curva);
 }
 
+/* ── Modalidades ────────────────────────────────────────────────────────── */
+
+.grupo__encabezado--separado {
+  margin-top: var(--e6);
+}
+
+.tramo {
+  background: var(--superficie);
+  border-radius: var(--radio-tarjeta);
+  padding: var(--e3);
+  margin-bottom: var(--e2);
+}
+
+.tramo__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+  margin-bottom: var(--e2);
+}
+
+.tramo__titulo {
+  font-size: var(--texto-nota);
+  font-weight: 600;
+  color: var(--texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.tramo__quitar {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--texto-nota);
+  color: var(--rojo);
+  transition: opacity var(--transicion-pulsacion) ease-out;
+}
+
+.tramo__quitar:active {
+  opacity: 0.4;
+}
+
+.tramo__quitar:disabled {
+  color: var(--texto-terciario);
+  cursor: default;
+}
+
+.tramo__cuantas {
+  padding: var(--e2) 0 0;
+  min-height: 40px;
+}
+
+.tramo__cuantas[hidden] {
+  display: none;
+}
+
+/* Control segmentado, el de iOS: la opción elegida lleva una pastilla. */
+.segmentado {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--relleno);
+}
+
+.segmentado__opcion {
+  min-height: 30px;
+  padding: 0 var(--e2);
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font-size: var(--texto-nota);
+  color: var(--texto);
+  transition: background-color var(--transicion-pulsacion) ease-out;
+}
+
+.segmentado__opcion[aria-pressed='true'] {
+  background: var(--superficie);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+
+.contador {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: var(--e1);
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--relleno);
+}
+
+.contador__boton {
+  width: 34px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--azul);
+  transition: background-color var(--transicion-pulsacion) ease-out;
+}
+
+.contador__boton:active:not(:disabled) {
+  background: var(--superficie);
+}
+
+.contador__boton:disabled {
+  color: var(--texto-terciario);
+  cursor: default;
+}
+
+.contador__cifra {
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Botonera de añadir tramo o réplica, al pie de la pista. */
+.anadidos {
+  display: flex;
+  justify-content: center;
+  gap: var(--e5);
+  padding-top: var(--e1);
+}
+
+.anadidos__accion {
+  padding: var(--e1) var(--e2);
+  border: 0;
+  background: none;
+  font-size: var(--texto-nota);
+  font-weight: 600;
+  color: var(--azul);
+  transition: opacity var(--transicion-pulsacion) ease-out;
+}
+
+.anadidos__accion:active {
+  opacity: 0.4;
+}
+
+/* ── Hoja para elegir modalidad ─────────────────────────────────────────── */
+
+.hoja {
+  width: 100%;
+  max-width: 340px;
+  padding: var(--e5);
+  border-radius: var(--radio-alerta);
+  background: var(--superficie);
+  animation: alerta-entra 220ms var(--curva);
+}
+
+.hoja__titulo {
+  font-size: var(--texto-titulo-seccion);
+  font-weight: 600;
+  margin: 0 0 var(--e4);
+  text-align: center;
+}
+
+.hoja__nota {
+  font-size: var(--texto-nota);
+  color: var(--texto-secundario);
+  margin: var(--e2) 0 var(--e4);
+  min-height: 2.6em;
+}
+
+.hoja__acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  margin-top: var(--e4);
+}
+
+.boton--suave {
+  background: var(--relleno);
+  color: var(--azul);
+}
+
 /* ── Botones ────────────────────────────────────────────────────────────── */
 
 .boton {
@@ -559,8 +741,12 @@ button {
   transform: scale(0.98);
 }
 
+/* El que se está puntuando va relleno de azul: se ve de reojo y sin mirar,
+   que es como se puntúa en directo. */
 .marcador--activo {
+  background: var(--azul);
   border-color: var(--azul);
+  color: #ffffff;
 }
 
 .marcador__nombre {
@@ -575,8 +761,9 @@ button {
   white-space: nowrap;
 }
 
-.marcador--activo .marcador__nombre {
-  color: var(--azul);
+.marcador--activo .marcador__nombre,
+.marcador--activo .marcador__replica {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .marcador__total {
@@ -584,6 +771,16 @@ button {
   font-weight: 700;
   line-height: 1;
   letter-spacing: -1px;
+}
+
+/* La réplica no se suma nunca al marcador: va debajo, aparte. */
+.marcador__replica {
+  font-size: var(--texto-menudo);
+  color: var(--texto-secundario);
+}
+
+.marcador__replica:empty {
+  display: none;
 }
 
 .turno {
@@ -595,13 +792,31 @@ button {
 
 /* ── Pista de intervenciones ────────────────────────────────────────────── */
 
+.bloques {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e4);
+}
+
+.bloque__titulo {
+  font-size: var(--texto-menudo);
+  font-weight: 600;
+  color: var(--texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--e1);
+}
+
+.bloque--replica .bloque__titulo {
+  color: var(--azul);
+}
+
 /* Dos columnas: los nombres se quedan quietos y los votos se deslizan. Las dos
    listas comparten alto de fila y separación, que es lo que las mantiene
    alineadas sin tener que medir nada. */
 .pista {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 0 var(--e2);
   align-items: start;
   min-height: 0;
 }
@@ -628,6 +843,28 @@ button {
   height: var(--alto-voto);
 }
 
+/* El hueco de la izquierda deja sitio a la fila de ordinales. */
+.pista__hueco,
+.pista__ordinales {
+  display: flex;
+  align-items: flex-end;
+  height: var(--alto-ordinal);
+  gap: var(--e1);
+}
+
+.pista__ordinales {
+  width: max-content;
+}
+
+.ordinal {
+  flex: none;
+  width: var(--alto-voto);
+  font-size: var(--texto-menudo);
+  color: var(--texto-terciario);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .pista__fila {
   gap: var(--e1);
   width: max-content;
@@ -635,16 +872,28 @@ button {
 
 .pista__etiqueta {
   max-width: 84px;
+  padding-right: var(--e2);
   font-size: var(--texto-menudo);
   color: var(--texto-secundario);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border-radius: 8px 0 0 8px;
+}
+
+/* La fila del que se está puntuando va teñida, para atarla con el marcador. */
+.pista__etiqueta--activo,
+.pista__fila--activa {
+  background: color-mix(in srgb, var(--azul) 14%, transparent);
 }
 
 .pista__etiqueta--activo {
   color: var(--azul);
   font-weight: 600;
+}
+
+.pista__fila--activa {
+  border-radius: 0 8px 8px 0;
 }
 
 .voto {

@@ -78,26 +78,41 @@ js/
 `storage.js` es la única frontera con IndexedDB, de modo que cambiar el
 almacenamiento por uno en la nube es reescribir ese archivo y nada más.
 
-## Batalleros y modalidad
+## Gallos
 
 Se preparan en la pantalla de inicio: entre 2 y 10, reordenables arrastrando
 por el agarre de la derecha. El orden que quede es el turno de intervención.
+Los nombres en blanco se llaman «Gallo A», «Gallo B»…
 
-Puntuando, el cursor pasa solo al siguiente y del último vuelve al primero;
-tocando un marcador se lleva a quien sea. Cada intervención aparece como un
-cuadrito en la fila de su batallero, y tocar uno lo marca para sustituirlo con
-la siguiente tecla.
+Puntuando, el gallo en turno se ve con el cuadro relleno de azul y su fila
+teñida. Tocar un marcador lleva el cursor a ese gallo; tocar un cuadrito ya
+puesto lo marca para sustituirlo con la siguiente tecla.
 
-La **modalidad dinámica** es la única por ahora: los cuadritos van saliendo
-según se meten votos, sin número fijo de intervenciones.
+## Tramos y modalidades
 
-### El esquema de datos ha cambiado
+Una batalla es una **secuencia de tramos**, cada uno con su modalidad. Puede
+llevar un 8×8 y después un 4×4, y se pueden añadir tramos ya empezada.
 
-Antes una batalla eran dos batalleros sueltos (`batalleroA`, `totalA`…) y ahora
-es una lista. La conversión vive en `compat.js` y se aplica en dos sitios: al
-subir de versión la base de datos, y al importar un `.json` exportado antes del
-cambio. Los identificadores `A` y `B` se conservan, así que las puntuaciones
-antiguas siguen apuntando a quien apuntaban.
+| Modalidad | Intervenciones | Orden |
+|---|---|---|
+| Dinámica | van saliendo según se puntúa | alterna entre gallos |
+| N×N | fijas, se eligen (un 4×4 son 4) | alterna entre gallos |
+| Minuto | fijas, se eligen | agota un gallo antes de pasar al siguiente |
+
+Cuando un tramo se llena, el cursor salta solo al siguiente. Si no queda hueco
+en ninguno, el teclado se apaga hasta que se añada otro tramo o se termine.
+
+La **réplica** es un tramo más, marcado aparte: nunca se suma al marcador de la
+batalla; se muestra debajo, en su propia línea.
+
+### El esquema de datos ha cambiado dos veces
+
+Primero, de dos batalleros sueltos (`batalleroA`, `totalA`…) a una lista.
+Después, de una tirada de puntuaciones a una secuencia de tramos. Las dos
+traducciones viven en `compat.js` y se aplican en dos sitios: al subir de
+versión la base de datos, y al importar un `.json` exportado antes del cambio.
+Los identificadores se conservan siempre, así que las puntuaciones antiguas
+siguen apuntando a quien apuntaban.
 
 ## La batalla en curso
 
