@@ -20,7 +20,7 @@ const REPARTO = [
   { hasta: 12, columnas: 4, cifra: 'clamp(18px, 5vw, 24px)' },
 ];
 
-export function crearVistaFiltros({ empujar, volverAlaRaiz, confirmar }) {
+export function crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar }) {
   const el = {
     form: $('form-filtros'),
     lista: $('lista-aspirantes'),
@@ -65,7 +65,18 @@ export function crearVistaFiltros({ empujar, volverAlaRaiz, confirmar }) {
     aspiranteAceptar: $('aspirante-aceptar'),
     aspiranteCancelar: $('aspirante-cancelar'),
 
+    orden: $('orden'),
+    corte: $('corte'),
+    tablaNombres: $('tabla-nombres'),
+    tablaCuerpo: $('tabla-cuerpo'),
+    tablaCabecera: $('tabla-cabecera'),
+    btnVolverTabla: $('cbtn-volver'),
+
     pila: $('pila'),
+    tplTablaNombre: $('tpl-tabla-nombre'),
+    tplTablaFila: $('tpl-tabla-fila'),
+    tplTablaCelda: $('tpl-tabla-celda'),
+    tplTablaColumna: $('tpl-tabla-columna'),
     tplAspirante: $('tpl-aspirante'),
     tplTecla: $('tpl-tecla'),
     tplMarcador: $('tpl-marcador'),
@@ -91,6 +102,7 @@ export function crearVistaFiltros({ empujar, volverAlaRaiz, confirmar }) {
   let editando = false;
   let contador = 0;
   let ultimoGrupoVisto = null;
+  let orden = 'puntuacion';
 
   const nuevoId = () => `p${(contador += 1)}`;
 
@@ -352,6 +364,82 @@ export function crearVistaFiltros({ empujar, volverAlaRaiz, confirmar }) {
     el.desplazable.scrollTop +=
       bloque.getBoundingClientRect().top -
       el.desplazable.getBoundingClientRect().top;
+  }
+
+  // ── Clasificación ────────────────────────────────────────────────────────
+
+  function terminar() {
+    pintarTabla();
+    empujar('vista-clasificacion');
+  }
+
+  /**
+   * Filas por participante, una columna por jurado y el puesto al final. El
+   * puesto lo decide siempre la suma; el selector sólo cambia el orden de las
+   * filas, no quién clasifica.
+   */
+  function pintarTabla() {
+    const filas = filtros.clasificacion(ahora, { orden });
+    const jurados = ahora.jurados;
+    const conTotal = jurados.length > 1;
+    const columnas = [
+      ...jurados.map((jurado) => jurado.nombre),
+      ...(conTotal ? ['Total'] : []),
+      '#',
+    ];
+
+    // A quién le habría dado el corte cada jurado, si contase él solo.
+    const segunCadaUno = new Map(
+      jurados.map((jurado) => [jurado.id, filtros.clasificariaSegun(ahora, jurado.id)])
+    );
+
+    for (const opcion of el.orden.children) {
+      opcion.setAttribute('aria-pressed', String(opcion.dataset.orden === orden));
+    }
+    poner(
+      el.corte,
+      filas.length
+        ? `Clasifican los ${ahora.clasifican} primeros de ${filas.length}.`
+        : 'Todavía no hay a quién clasificar.'
+    );
+
+    ajustarHijos(el.tablaCabecera, columnas.length, () => clonar(el.tplTablaColumna));
+    columnas.forEach((texto, i) => poner(el.tablaCabecera.children[i], texto));
+
+    // El primer hijo de cada columna es el título y la cabecera.
+    ajustarHijos(el.tablaNombres, filas.length + 1, () => clonar(el.tplTablaNombre));
+    ajustarHijos(el.tablaCuerpo, filas.length + 1, () => clonar(el.tplTablaFila));
+
+    filas.forEach((fila, i) => {
+      const donde = ahora.participantes.findIndex((p) => p.id === fila.participante.id);
+      poner(el.tablaNombres.children[i + 1], comoSeLlama(fila.participante, donde));
+
+      const nodo = el.tablaCuerpo.children[i + 1];
+      ajustarHijos(nodo, columnas.length, () => clonar(el.tplTablaCelda));
+
+      jurados.forEach((jurado, j) => {
+        const celda = nodo.children[j];
+        const nota = filtros.notaDe(ahora, jurado.id, fila.participante.id);
+        const habriaPasado = segunCadaUno.get(jurado.id).has(fila.participante.id);
+
+        celda.dataset.jurado = jurado.id;
+        celda.dataset.participante = fila.participante.id;
+        poner(celda, nota === null ? '—' : filtros.comoSeEscribe(nota));
+        celda.classList.toggle('celda--verde', habriaPasado && fila.clasifica);
+        celda.classList.toggle('celda--ambar', habriaPasado && !fila.clasifica);
+      });
+
+      if (conTotal) {
+        const total = nodo.children[jurados.length];
+        total.classList.add('celda--total');
+        poner(total, filtros.comoSeEscribe(fila.total));
+      }
+
+      const puesto = nodo.children[columnas.length - 1];
+      puesto.className = 'celda tabular celda--puesto';
+      puesto.classList.toggle('celda--pasa', fila.clasifica);
+      poner(puesto, fila.posicion);
+    });
   }
 
   // ── Acciones ─────────────────────────────────────────────────────────────
@@ -657,6 +745,15 @@ export function crearVistaFiltros({ empujar, volverAlaRaiz, confirmar }) {
 
   el.btnBorrar.addEventListener('click', borrar);
   el.btnCancelar.addEventListener('click', cancelar);
+  el.btnTerminar.addEventListener('click', terminar);
+  el.btnVolverTabla.addEventListener('click', sacar);
+
+  el.orden.addEventListener('click', (evento) => {
+    const opcion = evento.target.closest('[data-orden]');
+    if (!opcion) return;
+    orden = opcion.dataset.orden;
+    pintarTabla();
+  });
   el.btnAnadir.addEventListener('click', pedirAspirante);
   el.btnEditar.addEventListener('click', () => {
     editando = !editando;

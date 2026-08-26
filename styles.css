@@ -587,6 +587,128 @@ button {
   transition: transform 200ms var(--curva);
 }
 
+/* ── Tabla de clasificación ─────────────────────────────────────────────── */
+
+:root {
+  --alto-celda: 40px;
+  --ancho-celda: 62px;
+}
+
+.tabla {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  margin-top: var(--e2);
+  border-radius: var(--radio-tarjeta);
+  overflow: hidden;
+  background: var(--superficie);
+}
+
+.tabla__nombres,
+.tabla__cuerpo {
+  display: flex;
+  flex-direction: column;
+}
+
+.tabla__carril {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla__titulo,
+.tabla__cabecera {
+  height: var(--alto-celda);
+  display: flex;
+  align-items: center;
+  font-size: var(--texto-menudo);
+  font-weight: 600;
+  color: var(--texto-secundario);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.tabla__titulo {
+  padding: 0 var(--e3);
+}
+
+.tabla__cabecera,
+.tabla__fila {
+  display: flex;
+  align-items: center;
+  height: var(--alto-celda);
+  width: max-content;
+}
+
+.tabla__nombre {
+  display: flex;
+  align-items: center;
+  height: var(--alto-celda);
+  max-width: 160px;
+  padding: 0 var(--e3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Separadores entre filas, sin llegar al borde izquierdo. */
+.tabla__nombre + .tabla__nombre,
+.tabla__fila + .tabla__fila,
+.tabla__cabecera + .tabla__fila {
+  box-shadow: 0 -0.5px 0 var(--separador);
+}
+
+.tabla__columna,
+.celda {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--ancho-celda);
+  height: var(--alto-celda);
+  text-align: center;
+}
+
+.tabla__columna {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--e1);
+}
+
+.celda--total {
+  font-weight: 700;
+}
+
+/* El puesto: en verde si pasa el corte. */
+.celda--puesto {
+  font-weight: 700;
+  color: var(--texto-secundario);
+}
+
+.celda--pasa {
+  color: var(--verde);
+}
+
+/* La nota de un jurado se colorea según lo que habría pasado contando sólo a
+   ese jurado: verde si además clasifica de verdad, ámbar si no. */
+.celda--verde {
+  background: color-mix(in srgb, var(--verde) 20%, transparent);
+  color: var(--verde);
+  font-weight: 600;
+}
+
+.celda--ambar {
+  background: color-mix(in srgb, var(--naranja) 22%, transparent);
+  color: var(--naranja);
+  font-weight: 600;
+}
+
+.tabla__fila--pasa .tabla__puesto {
+  color: var(--verde);
+}
+
 /* ── Modalidades ────────────────────────────────────────────────────────── */
 
 .grupo__encabezado--separado {

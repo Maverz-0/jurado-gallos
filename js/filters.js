@@ -57,6 +57,10 @@ export function crearFiltros({
 
   return {
     participantes: limpios,
+    // El primero es quien puntúa en la app: su nota sale de las intervenciones.
+    // Los demás se añaden al final y se les meten las notas a mano.
+    jurados: [{ id: 'j1', nombre: 'Jurado 1', propio: true }],
+    notasExtra: {},
     tamanoGrupo: entre(tamanoGrupo, MIN_TAMANO_GRUPO, MAX_TAMANO_GRUPO, TAMANO_GRUPO_POR_DEFECTO),
     intervenciones: entre(intervenciones, MIN_INTERVENCIONES, MAX_INTERVENCIONES, INTERVENCIONES_POR_DEFECTO),
     notaMaxima: acotarNotaMaxima(notaMaxima),
@@ -323,26 +327,79 @@ export function moverParticipante(filtros, id, hasta) {
 
 // ── Clasificación ──────────────────────────────────────────────────────────
 
+// ── Jurados ────────────────────────────────────────────────────────────────
+
 /**
- * Todos ordenados de mejor a peor, con su puesto y si pasa el corte.
- * Desempata la media sin redondear; si también empatan, el orden de llegada.
+ * Lo que un jurado le ha puesto a alguien. El de la app no vota una nota
+ * suelta: la suya es la media de las intervenciones que fue metiendo.
  */
-export function clasificacion(filtros) {
-  const conNota = filtros.participantes.map((participante, orden) => ({
+export function notaDe(filtros, idJurado, idParticipante) {
+  const jurado = filtros.jurados.find((j) => j.id === idJurado);
+  if (!jurado) return null;
+  if (jurado.propio) return media(filtros, idParticipante);
+
+  const suya = filtros.notasExtra[idJurado]?.[idParticipante];
+  return suya === undefined ? null : suya;
+}
+
+/** La suma de lo que le ha puesto cada jurado. */
+export function totalDe(filtros, idParticipante) {
+  return filtros.jurados.reduce(
+    (suma, jurado) => suma + (notaDe(filtros, jurado.id, idParticipante) ?? 0),
+    0
+  );
+}
+
+// ── Clasificación ──────────────────────────────────────────────────────────
+
+/**
+ * Todos, con su puesto y si pasan el corte.
+ *
+ * El puesto lo decide siempre la suma de los jurados, mire uno la tabla como
+ * la mire; `orden` sólo cambia cómo se enseñan las filas. Desempata la media
+ * sin redondear y, si también empatan, el orden de llegada.
+ */
+export function clasificacion(filtros, { orden = 'puntuacion' } = {}) {
+  const conNota = filtros.participantes.map((participante, llegada) => ({
     participante,
-    orden,
+    llegada,
     nota: media(filtros, participante.id),
+    total: totalDe(filtros, participante.id),
     exacta: mediaExacta(filtros, participante.id),
     votos: cuantasNotas(filtros, participante.id),
   }));
 
-  conNota.sort(
-    (a, b) => b.nota - a.nota || b.exacta - a.exacta || a.orden - b.orden
+  const porPuntuacion = [...conNota].sort(
+    (a, b) => b.total - a.total || b.exacta - a.exacta || a.llegada - b.llegada
   );
 
-  return conNota.map((fila, i) => ({
-    ...fila,
-    posicion: i + 1,
-    clasifica: i < filtros.clasifican,
-  }));
+  const puestos = new Map(
+    porPuntuacion.map((fila, i) => [
+      fila.participante.id,
+      { posicion: i + 1, clasifica: i < filtros.clasifican },
+    ])
+  );
+
+  const filas = orden === 'participacion' ? conNota : porPuntuacion;
+
+  return filas.map((fila) => ({ ...fila, ...puestos.get(fila.participante.id) }));
+}
+
+/**
+ * Si sólo contase este jurado, ¿habría entrado? Es lo que colorea su casilla:
+ * verde cuando además clasifica de verdad, y amarillo cuando no.
+ */
+export function clasificariaSegun(filtros, idJurado) {
+  const conNota = filtros.participantes
+    .map((participante, llegada) => ({
+      id: participante.id,
+      llegada,
+      nota: notaDe(filtros, idJurado, participante.id) ?? 0,
+      exacta: mediaExacta(filtros, participante.id),
+    }))
+    .sort((a, b) => b.nota - a.nota || b.exacta - a.exacta || a.llegada - b.llegada);
+
+  return new Set(
+    conNota.slice(0, filtros.clasifican).map((fila) => fila.id)
+  );
 }

@@ -411,6 +411,51 @@
         </div>
       </section>
 
+      <!-- ────────────────────── Clasificación ─────────────────────── -->
+      <section class="vista" id="vista-clasificacion" aria-label="Clasificación" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="cbtn-volver">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path
+                  d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Filtros
+            </button>
+            <h2 class="barra__titulo barra__titulo--oculto">Clasificación</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+          <h1 class="titulo-grande">Clasificación</h1>
+        </header>
+
+        <div class="vista__cuerpo">
+          <div class="segmentado" id="orden" role="group" aria-label="Ordenar por">
+            <button class="segmentado__opcion" type="button" data-orden="puntuacion" aria-pressed="true">Puntuación</button>
+            <button class="segmentado__opcion" type="button" data-orden="participacion" aria-pressed="false">Participación</button>
+          </div>
+          <p class="grupo__pie" id="corte"></p>
+
+          <!-- Los nombres se quedan fijos y las columnas de jurados se
+               deslizan, igual que la pista de intervenciones. -->
+          <div class="tabla">
+            <div class="tabla__nombres" id="tabla-nombres">
+              <span class="tabla__titulo">Participante</span>
+            </div>
+            <div class="tabla__carril">
+              <div class="tabla__cuerpo" id="tabla-cuerpo">
+                <div class="tabla__cabecera" id="tabla-cabecera"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ────────────────── Resultados anteriores ─────────────────── -->
       <section class="vista" id="vista-historial" aria-label="Resultados anteriores" inert>
         <header class="barra">
@@ -799,6 +844,22 @@
     <!-- Fila de la pista de filtros: en modo edición saca quitar y agarre. -->
     <template id="tpl-fila-participante">
       <div class="pista__fila pista__fila--participante"></div>
+    </template>
+
+    <template id="tpl-tabla-nombre">
+      <span class="tabla__nombre"></span>
+    </template>
+
+    <template id="tpl-tabla-fila">
+      <div class="tabla__fila"></div>
+    </template>
+
+    <template id="tpl-tabla-celda">
+      <span class="celda tabular"></span>
+    </template>
+
+    <template id="tpl-tabla-columna">
+      <span class="tabla__columna"></span>
     </template>
 
     <!-- El mando sólo se ve en modo edición: puntuando no hay nada que tocar

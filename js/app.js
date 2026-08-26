@@ -908,7 +908,7 @@ function pedirModalidad({ titulo, aceptar }) {
 
 const historial = crearHistorial({ empujar, sacar, confirmar });
 const copia = crearCopia({ empujar });
-const vistaFiltros = crearVistaFiltros({ empujar, volverAlaRaiz, confirmar });
+const vistaFiltros = crearVistaFiltros({ empujar, sacar, volverAlaRaiz, confirmar });
 
 // ── Batalla o filtros ──────────────────────────────────────────────────────
 
