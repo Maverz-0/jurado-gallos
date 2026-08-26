@@ -607,12 +607,22 @@ button {
   display: none;
 }
 
+/* La versión nueva sí lleva el color de acento: es lo único que pide que
+   hagas algo ahora mismo. */
+.recordatorio--version {
+  background: color-mix(in srgb, var(--azul) 12%, transparent);
+}
+
 .recordatorio__texto {
   flex: 1;
   min-width: 0;
   font-size: var(--texto-nota);
   color: var(--texto-secundario);
   margin: 0;
+}
+
+.recordatorio--version .recordatorio__texto {
+  color: var(--texto);
 }
 
 .recordatorio__accion {

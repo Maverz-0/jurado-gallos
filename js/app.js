@@ -32,6 +32,8 @@ const el = {
   btnHistorial: $('btn-historial'),
   btnCopia: $('btn-copia'),
   btnAvisoCopia: $('btn-aviso-copia'),
+  avisoVersion: $('aviso-version'),
+  btnActualizar: $('btn-actualizar'),
 
   btnCancelar: $('btn-cancelar'),
   btnTerminar: $('btn-terminar'),
@@ -381,7 +383,55 @@ document.addEventListener('keydown', (evento) => {
   }
 });
 
+// ── Versiones nuevas ───────────────────────────────────────────────────────
+
+/**
+ * El service worker nuevo se queda esperando en vez de tomar el relevo solo:
+ * recargar a mitad de una batalla la perdería. En cuanto hay uno esperando se
+ * enciende el aviso del inicio, que es el único sitio donde recargar no cuesta
+ * nada, y el relevo lo pide el usuario.
+ */
+function vigilarVersiones() {
+  if (!('serviceWorker' in navigator)) return;
+
+  let recargando = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (recargando) return;
+    recargando = true;
+    location.reload();
+  });
+
+  navigator.serviceWorker
+    .register('./sw.js')
+    .then((registro) => {
+      // Puede haber quedado uno esperando de una visita anterior.
+      anunciarSiEspera(registro.waiting);
+
+      registro.addEventListener('updatefound', () => {
+        const entrante = registro.installing;
+        entrante?.addEventListener('statechange', () => {
+          if (entrante.state === 'installed') anunciarSiEspera(entrante);
+        });
+      });
+    })
+    .catch((error) => {
+      console.error('No se ha podido registrar el service worker:', error);
+    });
+}
+
+function anunciarSiEspera(trabajador) {
+  // Sin controller es la primera instalación: no hay versión vieja que relevar.
+  if (!trabajador || !navigator.serviceWorker.controller) return;
+
+  el.avisoVersion.hidden = false;
+  el.btnActualizar.onclick = () => {
+    el.btnActualizar.disabled = true;
+    trabajador.postMessage({ tipo: 'ACTIVAR_YA' });
+  };
+}
+
 // ── Arranque ───────────────────────────────────────────────────────────────
 
 pintarPila({ bloquear: false });
 pedirPersistencia();
+vigilarVersiones();
