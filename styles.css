@@ -128,6 +128,9 @@ button {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  /* `clip` no crea contenedor de scroll, así que nada puede desplazar la pila
+     por accidente. `hidden` queda de reserva donde no se entienda. */
+  overflow: clip;
 }
 
 .vista {
@@ -492,6 +495,95 @@ button {
 }
 
 .batallero--apartada {
+  transition: transform 200ms var(--curva);
+}
+
+/* ── Filtros ────────────────────────────────────────────────────────────── */
+
+.segmentado--modo {
+  margin-bottom: var(--e5);
+}
+
+.segmentado--modo .segmentado__opcion {
+  min-height: 36px;
+  font-size: var(--texto-cuerpo);
+}
+
+.segmentado__estrecho {
+  flex: none;
+  width: 168px;
+}
+
+.segmentado__estrecho .segmentado__opcion {
+  font-size: var(--texto-menudo);
+  min-height: 28px;
+}
+
+.aspirante__grupo {
+  flex: none;
+  font-size: var(--texto-nota);
+  color: var(--texto-secundario);
+}
+
+/* El nombre de un participante deja sitio al mando cuando se está editando. */
+.pista__etiqueta--participante {
+  display: flex;
+  align-items: center;
+  gap: var(--e1);
+  max-width: 150px;
+}
+
+.pista__nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mando {
+  display: none;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+
+.editando .mando {
+  display: flex;
+}
+
+/* Con el mando delante, el nombre necesita más sitio para no quedarse en
+   tres letras. La pista se reajusta al entrar y salir del modo. */
+.editando .pista__etiqueta--participante {
+  max-width: 215px;
+}
+
+.mando__quitar svg {
+  width: 19px;
+  height: 19px;
+}
+
+.mando__agarre {
+  width: 26px;
+  height: 34px;
+}
+
+.mando__agarre svg {
+  width: 19px;
+  height: 19px;
+}
+
+/* Puntuando, la fila entera es un blanco cómodo para mover el cursor. */
+.pista__fila--participante {
+  cursor: pointer;
+}
+
+.participante--arrastrando {
+  position: relative;
+  z-index: 2;
+  opacity: 0.9;
+}
+
+.participante--apartada {
   transition: transform 200ms var(--curva);
 }
 

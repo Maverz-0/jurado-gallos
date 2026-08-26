@@ -19,6 +19,7 @@ import {
 import { crearHistorial } from './history.js';
 import { crearCopia } from './transfer.js';
 import { compartirImagen, compartirTexto } from './share.js';
+import { crearVistaFiltros } from './filters-view.js';
 
 const { comoSeEscribe } = scoring;
 
@@ -60,7 +61,9 @@ const EXPLICACIONES = {
 const $ = (id) => document.getElementById(id);
 
 const el = {
+  modo: $('modo'),
   formNueva: $('form-nueva'),
+  formFiltros: $('form-filtros'),
   lista: $('lista-batalleros'),
   btnAnadir: $('btn-anadir'),
   listaTramos: $('lista-tramos'),
@@ -732,10 +735,11 @@ function asomarElTramo(idTramo = batalla.cursor.tramo) {
   const bloque = el.bloques.children[t];
   if (!bloque) return;
 
-  // `start` para que el tramo quede entero a la vista, no asomando por abajo.
-  // Y sin animar: puntuando llegan notas seguidas y un desplazamiento suave se
-  // queda a medias en cuanto lo interrumpe el siguiente.
-  bloque.scrollIntoView({ block: 'start', behavior: 'auto' });
+  // Se mueve sólo el contenedor de tramos, a mano. `scrollIntoView` arrastra
+  // también a los ancestros y llega a descolocar la pila de vistas entera.
+  el.desplazable.scrollTop +=
+    bloque.getBoundingClientRect().top -
+    el.desplazable.getBoundingClientRect().top;
 }
 
 function queTocaAhora(sePuedeAnotar) {
@@ -904,6 +908,19 @@ function pedirModalidad({ titulo, aceptar }) {
 
 const historial = crearHistorial({ empujar, sacar, confirmar });
 const copia = crearCopia({ empujar });
+const vistaFiltros = crearVistaFiltros({ empujar, volverAlaRaiz, confirmar });
+
+// ── Batalla o filtros ──────────────────────────────────────────────────────
+
+function elegirModo(cual) {
+  const filtros = cual === 'filtros';
+  el.formNueva.hidden = filtros;
+  el.formFiltros.hidden = !filtros;
+
+  for (const opcion of el.modo.children) {
+    opcion.setAttribute('aria-pressed', String(opcion.dataset.modo === cual));
+  }
+}
 
 // ── Batalla en curso a salvo ───────────────────────────────────────────────
 
@@ -1211,6 +1228,10 @@ async function compartir(acta) {
 // ── Enlaces ────────────────────────────────────────────────────────────────
 
 el.formNueva.addEventListener('submit', empezarBatalla);
+el.modo.addEventListener('click', (evento) => {
+  const opcion = evento.target.closest('[data-modo]');
+  if (opcion) elegirModo(opcion.dataset.modo);
+});
 el.btnAnadir.addEventListener('click', anadirBatallero);
 el.btnAnadirTramo.addEventListener('click', anadirTramoAlaPlantilla);
 el.notaMenos.addEventListener('click', () => moverNotaMaxima(-1));

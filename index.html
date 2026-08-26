@@ -27,6 +27,13 @@
         </header>
 
         <div class="vista__cuerpo">
+          <!-- Dos cosas distintas: una batalla se suma, unos filtros se
+               promedian y clasifican. Cada modo trae su propia preparación. -->
+          <div class="segmentado segmentado--modo" id="modo" role="group" aria-label="Qué se va a puntuar">
+            <button class="segmentado__opcion" type="button" data-modo="batalla" aria-pressed="true">Batalla</button>
+            <button class="segmentado__opcion" type="button" data-modo="filtros" aria-pressed="false">Filtros</button>
+          </div>
+
           <form class="grupo" id="form-nueva">
             <p class="grupo__encabezado">Batalleros</p>
             <div class="tarjeta" id="lista-batalleros"></div>
@@ -92,6 +99,81 @@
 
             <button class="boton boton--principal" type="submit">
               Empezar batalla
+            </button>
+          </form>
+
+          <form class="grupo" id="form-filtros" hidden>
+            <p class="grupo__encabezado">Participantes</p>
+            <div class="tarjeta" id="lista-aspirantes"></div>
+
+            <div class="tarjeta tarjeta--aparte">
+              <button class="fila fila--enlace fila--accion" type="button" id="btn-anadir-aspirante">
+                <span class="signo" aria-hidden="true">
+                  <svg viewBox="0 0 22 22" focusable="false">
+                    <path d="M11 5v12M5 11h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <span class="fila__titulo fila__titulo--ancho">Añadir participante</span>
+              </button>
+            </div>
+            <p class="grupo__pie">
+              Puedes empezar sin nadie y apuntarlos sobre la marcha. Se reparten
+              en grupos por orden.
+            </p>
+
+            <p class="grupo__encabezado grupo__encabezado--separado">Formato</p>
+            <div class="tarjeta">
+              <div class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Por grupo</span>
+                <div class="contador">
+                  <button class="contador__boton" type="button" id="grupo-menos" aria-label="Uno menos">−</button>
+                  <span class="contador__cifra tabular" id="grupo-cuantos">4</span>
+                  <button class="contador__boton" type="button" id="grupo-mas" aria-label="Uno más">+</button>
+                </div>
+              </div>
+              <div class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Intervenciones</span>
+                <div class="contador">
+                  <button class="contador__boton" type="button" id="inter-menos" aria-label="Una menos">−</button>
+                  <span class="contador__cifra tabular" id="inter-cuantas">3</span>
+                  <button class="contador__boton" type="button" id="inter-mas" aria-label="Una más">+</button>
+                </div>
+              </div>
+              <div class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Clasifican</span>
+                <div class="contador">
+                  <button class="contador__boton" type="button" id="clasifican-menos" aria-label="Uno menos">−</button>
+                  <span class="contador__cifra tabular" id="clasifican-cuantos">8</span>
+                  <button class="contador__boton" type="button" id="clasifican-mas" aria-label="Uno más">+</button>
+                </div>
+              </div>
+            </div>
+
+            <p class="grupo__encabezado grupo__encabezado--separado">Puntuación</p>
+            <div class="tarjeta">
+              <div class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Nota máxima</span>
+                <div class="contador">
+                  <button class="contador__boton" type="button" id="fnota-menos" aria-label="Una menos">−</button>
+                  <span class="contador__cifra tabular" id="fnota-maxima">4</span>
+                  <button class="contador__boton" type="button" id="fnota-mas" aria-label="Una más">+</button>
+                </div>
+              </div>
+              <div class="fila">
+                <span class="fila__titulo">Redondeo</span>
+                <div class="segmentado segmentado__estrecho" id="redondeo" role="group" aria-label="Redondeo de la media">
+                  <button class="segmentado__opcion" type="button" data-redondeo="medios" aria-pressed="true">Medios</button>
+                  <button class="segmentado__opcion" type="button" data-redondeo="unidades" aria-pressed="false">Enteros</button>
+                </div>
+              </div>
+            </div>
+            <p class="grupo__pie">
+              La nota de cada uno es la media de sus intervenciones. Con medios,
+              un 3,4 se queda en 3,5.
+            </p>
+
+            <button class="boton boton--principal" type="submit">
+              Empezar filtros
             </button>
           </form>
 
@@ -259,6 +341,76 @@
           <p class="grupo__pie" id="aviso-guardar" role="status"></p>
         </div>
       </section>
+      <!-- ────────────────────── Filtros ──────────────────────────── -->
+      <section class="vista" id="vista-filtros" aria-label="Filtros" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--destructiva" type="button" id="fbtn-cancelar">
+              Cancelar
+            </button>
+            <h2 class="barra__titulo">Filtros</h2>
+            <button class="barra__accion barra__accion--fuerte" type="button" id="fbtn-terminar">
+              Terminar
+            </button>
+          </div>
+        </header>
+
+        <div class="vista__cuerpo vista__cuerpo--puntuacion">
+          <div class="fijo">
+            <p class="bloque__titulo" id="fgrupo-titulo"></p>
+            <div class="marcadores" id="fmarcadores" role="group" aria-label="Grupo en curso"></div>
+            <p class="turno" aria-live="polite" id="fturno"></p>
+          </div>
+
+          <div class="desplazable" id="fdesplazable">
+            <div class="bloques" id="fbloques"></div>
+
+            <div class="vacio" id="fvacio" hidden>
+              <p class="vacio__titulo">Todavía no hay nadie</p>
+              <p class="vacio__texto">Apunta al primer participante para empezar.</p>
+            </div>
+
+            <div class="anadidos">
+              <button class="anadidos__accion" type="button" id="fbtn-anadir">
+                Añadir participante
+              </button>
+              <button class="anadidos__accion" type="button" id="fbtn-editar">
+                Editar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="teclado" id="fteclado">
+          <div class="teclado__rejilla" id="fteclado-rejilla">
+            <button
+              class="tecla tecla--borrar"
+              type="button"
+              id="fbtn-borrar"
+              aria-label="Borrar la última nota"
+              disabled
+            >
+              <svg viewBox="0 0 26 20" aria-hidden="true" focusable="false">
+                <path
+                  d="M8.4 1.2h14.1a2.3 2.3 0 0 1 2.3 2.3v13a2.3 2.3 0 0 1-2.3 2.3H8.4a2.3 2.3 0 0 1-1.7-.77L1.1 11.5a2.3 2.3 0 0 1 0-3L6.7 2a2.3 2.3 0 0 1 1.7-.8Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="m11.9 7 6.2 6.2M18.1 7l-6.2 6.2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <!-- ────────────────── Resultados anteriores ─────────────────── -->
       <section class="vista" id="vista-historial" aria-label="Resultados anteriores" inert>
         <header class="barra">
@@ -445,6 +597,49 @@
       </div>
     </div>
 
+    <!-- ─────────────────── Apuntar participante ───────────────────── -->
+    <div class="velo" id="velo-aspirante" hidden>
+      <div
+        class="hoja"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="aspirante-titulo"
+      >
+        <h2 class="hoja__titulo" id="aspirante-titulo">Añadir participante</h2>
+
+        <div class="tarjeta">
+          <div class="fila">
+            <input
+              class="fila__campo"
+              id="aspirante-nombre"
+              type="text"
+              placeholder="Nombre"
+              autocomplete="off"
+              autocapitalize="words"
+              autocorrect="off"
+              spellcheck="false"
+              enterkeyhint="done"
+              maxlength="40"
+            />
+          </div>
+          <div class="fila" id="aspirante-fila-grupo">
+            <span class="fila__titulo fila__titulo--ancho">Grupo</span>
+            <div class="contador">
+              <button class="contador__boton" type="button" id="aspirante-menos" aria-label="Grupo anterior">−</button>
+              <span class="contador__cifra tabular" id="aspirante-grupo">1</span>
+              <button class="contador__boton" type="button" id="aspirante-mas" aria-label="Grupo siguiente">+</button>
+            </div>
+          </div>
+        </div>
+        <p class="hoja__nota" id="aspirante-nota"></p>
+
+        <div class="hoja__acciones">
+          <button class="boton boton--principal" type="button" id="aspirante-aceptar">Añadir</button>
+          <button class="boton boton--suave" type="button" id="aspirante-cancelar">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ───────────────────── Compartir el acta ────────────────────── -->
     <div class="velo" id="velo-compartir" hidden>
       <div
@@ -586,6 +781,45 @@
 
     <template id="tpl-tecla">
       <button class="tecla tabular" type="button"></button>
+    </template>
+
+    <template id="tpl-aspirante">
+      <div class="fila aspirante">
+        <button class="signo signo--quitar" type="button" aria-label="Quitar participante">
+          <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <circle cx="11" cy="11" r="9.2" fill="currentColor" />
+            <path d="M6.6 11h8.8" fill="none" stroke="var(--superficie)" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+        </button>
+        <span class="aspirante__nombre fila__titulo fila__titulo--ancho"></span>
+        <span class="aspirante__grupo"></span>
+      </div>
+    </template>
+
+    <!-- Fila de la pista de filtros: en modo edición saca quitar y agarre. -->
+    <template id="tpl-fila-participante">
+      <div class="pista__fila pista__fila--participante"></div>
+    </template>
+
+    <!-- El mando sólo se ve en modo edición: puntuando no hay nada que tocar
+         sin querer junto a los cuadritos. -->
+    <template id="tpl-etiqueta-participante">
+      <span class="pista__etiqueta pista__etiqueta--participante">
+        <span class="mando">
+          <button class="signo signo--quitar mando__quitar" type="button" aria-label="Quitar participante">
+            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+              <circle cx="11" cy="11" r="9.2" fill="currentColor" />
+              <path d="M6.6 11h8.8" fill="none" stroke="var(--superficie)" stroke-width="2.2" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button class="agarre mando__agarre" type="button" aria-label="Arrastrar para reordenar">
+            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+              <path d="M4 7.5h14M4 11h14M4 14.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </span>
+        <span class="pista__nombre"></span>
+      </span>
     </template>
 
     <template id="tpl-resultado">
