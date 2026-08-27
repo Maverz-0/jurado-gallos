@@ -132,7 +132,8 @@ intervenciones y al final clasifican los mejores **del conjunto**, no de su
 grupo.
 
 - La nota de cada uno es la **media** de sus intervenciones, redondeada a medios
-  o a enteros (con medios, un 3,4 se queda en 3,5).
+  o a enteros (con medios, un 3,4 se queda en 3,5). También se puede apagar el
+  desglose y ponerle a cada participante **una sola nota**.
 - Se puntúa alternando dentro de un grupo hasta que todos completan sus
   intervenciones, y sólo entonces se pasa al siguiente.
 - Se puede empezar **sin nadie** y apuntar sobre la marcha. Quien llega tarde va
@@ -158,8 +159,12 @@ detrás de otro; tocar una casilla suya vuelve a ella para corregirla. Con más 
 un jurado aparece la columna de suma.
 
 Cada casilla se colorea según lo que habría pasado contando **sólo a ese
-jurado**: verde si además clasifica de verdad, ámbar si no. Es lo que enseña
+jurado**: verde si además clasifica de verdad, azul si no. Es lo que enseña
 dónde discrepan los jurados.
+
+Entre el último que pasa y el primero que no hay una raya, verde por arriba y
+roja por abajo. Y si los dos llevan la misma puntuación, el corte lo ha decidido
+el desempate y no la nota: los empatados salen en **amarillo**.
 
 ## Compartir
 

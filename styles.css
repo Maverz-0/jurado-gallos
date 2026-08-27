@@ -20,6 +20,7 @@
   --rojo: #ff3b30;
   --naranja: #ff9500;
   --verde: #34c759;
+  --amarillo: #ffcc00;
   --velo: rgba(0, 0, 0, 0.4);
   --alerta-fondo: rgba(250, 250, 250, 0.82);
 
@@ -74,6 +75,7 @@
     --rojo: #ff453a;
     --naranja: #ff9f0a;
     --verde: #30d158;
+    --amarillo: #ffd60a;
     --velo: rgba(0, 0, 0, 0.55);
     --alerta-fondo: rgba(40, 40, 42, 0.82);
   }
@@ -83,6 +85,12 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Cualquier `display` que pongamos por clase gana al `hidden` del navegador,
+   así que se refuerza aquí una vez y no hay que acordarse en cada sitio. */
+[hidden] {
+  display: none !important;
 }
 
 html,
@@ -746,17 +754,54 @@ button {
 }
 
 /* La nota de un jurado se colorea según lo que habría pasado contando sólo a
-   ese jurado: verde si además clasifica de verdad, ámbar si no. */
+   ese jurado: verde si además clasifica de verdad, azul si no. */
 .celda--verde {
   background: color-mix(in srgb, var(--verde) 20%, transparent);
   color: var(--verde);
   font-weight: 600;
 }
 
-.celda--ambar {
-  background: color-mix(in srgb, var(--naranja) 22%, transparent);
-  color: var(--naranja);
+.celda--azul {
+  background: color-mix(in srgb, var(--azul) 20%, transparent);
+  color: var(--azul);
   font-weight: 600;
+}
+
+/* Empate justo en la raya: el corte lo ha decidido el desempate, no la nota. */
+.celda--empate {
+  background: color-mix(in srgb, var(--amarillo) 26%, transparent);
+  color: var(--amarillo);
+  border-radius: 6px;
+}
+
+.tabla__nombre--empate {
+  color: var(--amarillo);
+}
+
+/* La línea de corte: verde por el lado de los que pasan, rojo por el de los
+   que no, y desvaneciéndose hacia fuera para que no parezca un borde más. */
+.tabla__nombre,
+.tabla__fila {
+  position: relative;
+}
+
+.tabla__nombre--corte::after,
+.tabla__fila--corte::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -8px;
+  height: 16px;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--verde) 70%, transparent) 44%,
+    color-mix(in srgb, var(--rojo) 70%, transparent) 56%,
+    transparent
+  );
 }
 
 /* La casilla que se está rellenando ahora mismo. */
@@ -792,8 +837,23 @@ button {
   background: color-mix(in srgb, var(--verde) 55%, transparent);
 }
 
-.leyenda__marca--ambar {
-  background: color-mix(in srgb, var(--naranja) 60%, transparent);
+.leyenda__marca--azul {
+  background: color-mix(in srgb, var(--azul) 60%, transparent);
+}
+
+.leyenda__marca--amarillo {
+  background: color-mix(in srgb, var(--amarillo) 70%, transparent);
+}
+
+/* Los botones de la zona fija van pegados al bloque de arriba. */
+.anadidos--fijos {
+  padding-top: var(--e2);
+}
+
+/* La cabecera de un jurado se puede tocar para cambiarle el nombre. */
+.tabla__columna--jurado {
+  color: var(--azul);
+  cursor: pointer;
 }
 
 .hoja__nota--corta {

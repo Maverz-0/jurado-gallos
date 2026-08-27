@@ -43,6 +43,10 @@ export function crearVistaFiltros({
     interCuantas: $('inter-cuantas'),
     interMenos: $('inter-menos'),
     interMas: $('inter-mas'),
+    opIntervenciones: $('op-intervenciones'),
+    filaIntervenciones: $('fila-intervenciones'),
+    nombreJurado: $('nombre-jurado'),
+    piePuntuacion: $('pie-puntuacion-filtros'),
     clasificanCuantos: $('clasifican-cuantos'),
     clasificanMenos: $('clasifican-menos'),
     clasificanMas: $('clasifican-mas'),
@@ -114,6 +118,7 @@ export function crearVistaFiltros({
     aspirantes: [],
     tamanoGrupo: filtros.TAMANO_GRUPO_POR_DEFECTO,
     intervenciones: filtros.INTERVENCIONES_POR_DEFECTO,
+    porIntervenciones: true,
     clasifican: filtros.CLASIFICAN_POR_DEFECTO,
     notaMaxima: 4,
     redondeo: filtros.REDONDEO_POR_DEFECTO,
@@ -150,6 +155,14 @@ export function crearVistaFiltros({
     contarEn(el.clasificanCuantos, el.clasificanMenos, el.clasificanMas, plantilla.clasifican,
       filtros.MIN_CLASIFICAN, filtros.MAX_CLASIFICAN);
     contarEn(el.notaMaxima, el.notaMenos, el.notaMas, plantilla.notaMaxima, 1, 10);
+
+    // Sin intervenciones sueltas, cuántas haya deja de importar.
+    el.opIntervenciones.checked = plantilla.porIntervenciones;
+    el.filaIntervenciones.hidden = !plantilla.porIntervenciones;
+
+    el.piePuntuacion.textContent = plantilla.porIntervenciones
+      ? `Cada participante hace ${plantilla.intervenciones} intervenciones y se queda con su media, redondeada a ${plantilla.redondeo === 'medios' ? 'medios' : 'enteros'}.`
+      : 'Cada participante lleva una sola nota, sin desglosar por intervenciones.';
 
     for (const opcion of el.redondeo.children) {
       opcion.setAttribute(
@@ -198,9 +211,11 @@ export function crearVistaFiltros({
       })),
       tamanoGrupo: plantilla.tamanoGrupo,
       intervenciones: plantilla.intervenciones,
+      porIntervenciones: plantilla.porIntervenciones,
       notaMaxima: plantilla.notaMaxima,
       redondeo: plantilla.redondeo,
       clasifican: plantilla.clasifican,
+      jurado: el.nombreJurado.value,
     });
 
     editando = false;
@@ -319,7 +334,7 @@ export function crearVistaFiltros({
       );
       poner(
         caja.querySelector('.marcador__replica'),
-        `${puestos}/${ahora.intervenciones}`
+        ahora.porIntervenciones ? `${puestos}/${ahora.intervenciones}` : ''
       );
     });
   }
@@ -334,9 +349,11 @@ export function crearVistaFiltros({
       poner(bloque.querySelector('.bloque__titulo'), `Grupo ${grupo.numero}`);
       bloque.dataset.grupo = String(grupo.interno);
 
+      // Sin intervenciones sueltas hay una sola casilla, y numerarla sobra.
       const ordinales = bloque.querySelector('.pista__ordinales');
-      ajustarHijos(ordinales, ahora.intervenciones, () => clonar(el.tplOrdinal));
-      for (let i = 0; i < ahora.intervenciones; i += 1) {
+      const numerados = ahora.porIntervenciones ? ahora.intervenciones : 0;
+      ajustarHijos(ordinales, numerados, () => clonar(el.tplOrdinal));
+      for (let i = 0; i < numerados; i += 1) {
         poner(ordinales.children[i], `${i + 1}ª`);
       }
 
@@ -534,17 +551,32 @@ export function crearVistaFiltros({
     );
 
     ajustarHijos(el.tablaCabecera, columnas.length, () => clonar(el.tplTablaColumna));
-    columnas.forEach((texto, i) => poner(el.tablaCabecera.children[i], texto));
+    columnas.forEach((texto, i) => {
+      const nodo = el.tablaCabecera.children[i];
+      poner(nodo, texto);
+      // Sólo las de jurado se pueden tocar para cambiarles el nombre.
+      const suyo = jurados[i];
+      nodo.classList.toggle('tabla__columna--jurado', !!suyo);
+      if (suyo) nodo.dataset.jurado = suyo.id;
+      else delete nodo.dataset.jurado;
+    });
 
     // El primer hijo de cada columna es el título y la cabecera.
     ajustarHijos(el.tablaNombres, filas.length + 1, () => clonar(el.tplTablaNombre));
     ajustarHijos(el.tablaCuerpo, filas.length + 1, () => clonar(el.tplTablaFila));
 
+    // La raya del corte sólo tiene sentido con las filas ordenadas por nota.
+    const conCorte = orden === 'puntuacion';
+
     filas.forEach((fila, i) => {
       const donde = ahora.participantes.findIndex((p) => p.id === fila.participante.id);
-      poner(el.tablaNombres.children[i + 1], comoSeLlama(fila.participante, donde));
+      const celdaNombre = el.tablaNombres.children[i + 1];
+      poner(celdaNombre, comoSeLlama(fila.participante, donde));
+      celdaNombre.classList.toggle('tabla__nombre--corte', conCorte && fila.ultimoQuePasa);
+      celdaNombre.classList.toggle('tabla__nombre--empate', fila.empatadoEnLaRaya);
 
       const nodo = el.tablaCuerpo.children[i + 1];
+      nodo.classList.toggle('tabla__fila--corte', conCorte && fila.ultimoQuePasa);
       ajustarHijos(nodo, columnas.length, () => clonar(el.tplTablaCelda));
 
       jurados.forEach((jurado, j) => {
@@ -552,11 +584,14 @@ export function crearVistaFiltros({
         const nota = filtros.notaDe(ahora, jurado.id, fila.participante.id);
         const habriaPasado = segunCadaUno.get(jurado.id).has(fila.participante.id);
 
+        // Se parte de cero: al añadir un jurado las celdas se reaprovechan y
+        // una que antes era el puesto llegaría aquí con su color puesto.
+        celda.className = 'celda tabular';
         celda.dataset.jurado = jurado.id;
         celda.dataset.participante = fila.participante.id;
         poner(celda, nota === null ? '—' : filtros.comoSeEscribe(nota));
         celda.classList.toggle('celda--verde', habriaPasado && fila.clasifica);
-        celda.classList.toggle('celda--ambar', habriaPasado && !fila.clasifica);
+        celda.classList.toggle('celda--azul', habriaPasado && !fila.clasifica);
         // Se decide aquí y no aparte, para que al salir del modo se limpie sola.
         celda.classList.toggle(
           'celda--apuntando',
@@ -567,13 +602,16 @@ export function crearVistaFiltros({
 
       if (conTotal) {
         const total = nodo.children[jurados.length];
-        total.classList.add('celda--total');
+        total.className = 'celda tabular celda--total';
+        delete total.dataset.jurado;
         poner(total, filtros.comoSeEscribe(fila.total));
       }
 
       const puesto = nodo.children[columnas.length - 1];
       puesto.className = 'celda tabular celda--puesto';
-      puesto.classList.toggle('celda--pasa', fila.clasifica);
+      delete puesto.dataset.jurado;
+      puesto.classList.toggle('celda--pasa', fila.clasifica && !fila.empatadoEnLaRaya);
+      puesto.classList.toggle('celda--empate', fila.empatadoEnLaRaya);
       poner(puesto, fila.posicion);
 
       el.tablaNombres.children[i + 1].classList.toggle(
@@ -582,20 +620,30 @@ export function crearVistaFiltros({
       );
     });
 
-    pintarLeyenda(conTotal);
+    pintarLeyenda(conTotal, filas.some((fila) => fila.empatadoEnLaRaya));
     pintarTecladoDeJurado();
     if (!restaurando) apuntarBorrador();
   }
 
-  function pintarLeyenda(conTotal) {
+  /**
+   * La leyenda habla sólo de lo que se ve en la tabla. Cómo sale la nota del
+   * jurado de la app no vale aquí: los demás ponen la suya directamente.
+   */
+  function pintarLeyenda(conTotal, hayEmpate) {
     const marca = (clase, texto) =>
       `<span class="leyenda__marca leyenda__marca--${clase}"></span> ${texto}`;
 
-    el.leyenda.innerHTML = [
-      `Notas de 0 a ${ahora.notaMaxima}; la de cada uno es la media de sus ${ahora.intervenciones} intervenciones, redondeada a ${ahora.redondeo === 'medios' ? 'medios' : 'enteros'}.`,
+    const lineas = [
+      `Notas de 0 a ${ahora.notaMaxima}.`,
       marca('verde', 'habría clasificado con ese jurado, y clasifica.'),
-      marca('ambar', `habría clasificado con ese jurado, pero no ${conTotal ? 'en la suma' : 'al final'}.`),
-    ].join('<br>');
+      marca('azul', `habría clasificado con ese jurado, pero no ${conTotal ? 'en la suma' : 'al final'}.`),
+    ];
+
+    if (hayEmpate) {
+      lineas.push(marca('amarillo', 'empatado justo en la raya del corte.'));
+    }
+
+    el.leyenda.innerHTML = lineas.join('<br>');
   }
 
   // ── Notas de un jurado añadido ───────────────────────────────────────────
@@ -1085,6 +1133,30 @@ export function crearVistaFiltros({
     if (!opcion) return;
     plantilla.redondeo = opcion.dataset.redondeo;
     pintarPreparacion();
+  });
+
+  el.opIntervenciones.addEventListener('change', () => {
+    plantilla.porIntervenciones = el.opIntervenciones.checked;
+    pintarPreparacion();
+  });
+
+  /** Tocar la cabecera de un jurado para cambiarle el nombre. */
+  el.tablaCabecera.addEventListener('click', async (evento) => {
+    const columna = evento.target.closest('[data-jurado]');
+    if (!columna) return;
+
+    const jurado = ahora.jurados.find((j) => j.id === columna.dataset.jurado);
+    if (!jurado) return;
+
+    const nombre = await nombreSuelto({
+      titulo: 'Nombre del jurado',
+      nota: '',
+      marcador: jurado.nombre,
+    });
+    if (nombre === null) return;
+
+    ahora = filtros.renombrarJurado(ahora, jurado.id, nombre);
+    pintarTabla();
   });
 
   el.tecladoRejilla.addEventListener('click', (evento) => {

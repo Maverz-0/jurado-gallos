@@ -133,7 +133,11 @@
                   <button class="contador__boton" type="button" id="grupo-mas" aria-label="Uno más">+</button>
                 </div>
               </div>
-              <div class="fila">
+              <label class="fila">
+                <span class="fila__titulo fila__titulo--ancho">Puntuar por intervenciones</span>
+                <input class="interruptor" type="checkbox" id="op-intervenciones" role="switch" checked />
+              </label>
+              <div class="fila" id="fila-intervenciones">
                 <span class="fila__titulo fila__titulo--ancho">Intervenciones</span>
                 <div class="contador">
                   <button class="contador__boton" type="button" id="inter-menos" aria-label="Una menos">−</button>
@@ -169,9 +173,27 @@
                 </div>
               </div>
             </div>
+            <p class="grupo__pie" id="pie-puntuacion-filtros"></p>
+
+            <p class="grupo__encabezado grupo__encabezado--separado">Jurado</p>
+            <div class="tarjeta">
+              <div class="fila">
+                <input
+                  class="fila__campo"
+                  id="nombre-jurado"
+                  type="text"
+                  placeholder="Jurado 1"
+                  autocomplete="off"
+                  autocapitalize="words"
+                  autocorrect="off"
+                  spellcheck="false"
+                  maxlength="24"
+                />
+              </div>
+            </div>
             <p class="grupo__pie">
-              La nota de cada uno es la media de sus intervenciones. Con medios,
-              un 3,4 se queda en 3,5.
+              Tu nombre en la tabla. Luego podrás añadir más jurados y cambiar
+              cualquier nombre tocándolo.
             </p>
 
             <button class="boton boton--principal" type="submit">
@@ -362,6 +384,17 @@
             <p class="bloque__titulo" id="fgrupo-titulo"></p>
             <div class="marcadores" id="fmarcadores" role="group" aria-label="Grupo en curso"></div>
             <p class="turno" aria-live="polite" id="fturno"></p>
+
+            <!-- Siempre a la vista: apuntar a alguien o reordenar no debería
+                 obligar a deslizar hasta el final de la lista. -->
+            <div class="anadidos anadidos--fijos">
+              <button class="anadidos__accion" type="button" id="fbtn-anadir">
+                Añadir participante
+              </button>
+              <button class="anadidos__accion" type="button" id="fbtn-editar">
+                Editar
+              </button>
+            </div>
           </div>
 
           <div class="desplazable" id="fdesplazable">
@@ -370,15 +403,6 @@
             <div class="vacio" id="fvacio" hidden>
               <p class="vacio__titulo">Todavía no hay nadie</p>
               <p class="vacio__texto">Apunta al primer participante para empezar.</p>
-            </div>
-
-            <div class="anadidos">
-              <button class="anadidos__accion" type="button" id="fbtn-anadir">
-                Añadir participante
-              </button>
-              <button class="anadidos__accion" type="button" id="fbtn-editar">
-                Editar
-              </button>
             </div>
           </div>
         </div>

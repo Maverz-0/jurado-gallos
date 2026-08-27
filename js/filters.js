@@ -45,9 +45,11 @@ export function crearFiltros({
   participantes = [],
   tamanoGrupo = TAMANO_GRUPO_POR_DEFECTO,
   intervenciones = INTERVENCIONES_POR_DEFECTO,
+  porIntervenciones = true,
   notaMaxima,
   redondeo = REDONDEO_POR_DEFECTO,
   clasifican = CLASIFICAN_POR_DEFECTO,
+  jurado = '',
 } = {}) {
   const limpios = participantes.map(({ id, nombre, grupo }) => ({
     id,
@@ -55,14 +57,21 @@ export function crearFiltros({
     grupo,
   }));
 
+  // Sin intervenciones sueltas, cada participante lleva una sola nota.
+  const porTurnos = !!porIntervenciones;
+  const cuantas = porTurnos
+    ? entre(intervenciones, MIN_INTERVENCIONES, MAX_INTERVENCIONES, INTERVENCIONES_POR_DEFECTO)
+    : 1;
+
   return {
     participantes: limpios,
     // El primero es quien puntúa en la app: su nota sale de las intervenciones.
     // Los demás se añaden al final y se les meten las notas a mano.
-    jurados: [{ id: 'j1', nombre: 'Jurado 1', propio: true }],
+    jurados: [{ id: 'j1', nombre: (jurado ?? '').trim() || 'Jurado 1', propio: true }],
     notasExtra: {},
     tamanoGrupo: entre(tamanoGrupo, MIN_TAMANO_GRUPO, MAX_TAMANO_GRUPO, TAMANO_GRUPO_POR_DEFECTO),
-    intervenciones: entre(intervenciones, MIN_INTERVENCIONES, MAX_INTERVENCIONES, INTERVENCIONES_POR_DEFECTO),
+    porIntervenciones: porTurnos,
+    intervenciones: cuantas,
     notaMaxima: acotarNotaMaxima(notaMaxima),
     redondeo: REDONDEOS[redondeo] ? redondeo : REDONDEO_POR_DEFECTO,
     clasifican: entre(clasifican, MIN_CLASIFICAN, MAX_CLASIFICAN, CLASIFICAN_POR_DEFECTO),
@@ -365,6 +374,7 @@ export function restaurar(datos) {
   const base = crearFiltros({
     tamanoGrupo: datos.tamanoGrupo,
     intervenciones: datos.intervenciones,
+    porIntervenciones: datos.porIntervenciones !== false,
     notaMaxima: datos.notaMaxima,
     redondeo: datos.redondeo,
     clasifican: datos.clasifican,
@@ -488,16 +498,47 @@ export function clasificacion(filtros, { orden = 'puntuacion' } = {}) {
     (a, b) => b.total - a.total || b.exacta - a.exacta || a.llegada - b.llegada
   );
 
+  /**
+   * Empate justo en la raya: si el último que pasa y el primero que no llevan
+   * lo mismo, el corte no lo decide la puntuación sino el desempate, y eso hay
+   * que enseñarlo. Se marcan todos los que lleven esa puntuación.
+   */
+  const corte = filtros.clasifican;
+  const enLaRaya =
+    corte > 0 &&
+    corte < porPuntuacion.length &&
+    porPuntuacion[corte - 1].total === porPuntuacion[corte].total
+      ? porPuntuacion[corte].total
+      : null;
+
   const puestos = new Map(
     porPuntuacion.map((fila, i) => [
       fila.participante.id,
-      { posicion: i + 1, clasifica: i < filtros.clasifican },
+      {
+        posicion: i + 1,
+        clasifica: i < corte,
+        empatadoEnLaRaya: enLaRaya !== null && fila.total === enLaRaya,
+        /** El último que pasa: donde va la línea de corte. */
+        ultimoQuePasa: i === corte - 1 && corte < porPuntuacion.length,
+      },
     ])
   );
 
   const filas = orden === 'participacion' ? conNota : porPuntuacion;
 
   return filas.map((fila) => ({ ...fila, ...puestos.get(fila.participante.id) }));
+}
+
+export function renombrarJurado(filtros, idJurado, nombre) {
+  const limpio = (nombre ?? '').trim();
+  if (!limpio) return filtros;
+
+  return {
+    ...filtros,
+    jurados: filtros.jurados.map((jurado) =>
+      jurado.id === idJurado ? { ...jurado, nombre: limpio } : jurado
+    ),
+  };
 }
 
 /**
