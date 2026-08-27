@@ -529,6 +529,34 @@ export function clasificacion(filtros, { orden = 'puntuacion' } = {}) {
   return filas.map((fila) => ({ ...fila, ...puestos.get(fila.participante.id) }));
 }
 
+/**
+ * Dónde va la raya que separa a los que pasan de los que no, fila a fila.
+ *
+ * Sin empate es una sola, verde por arriba y roja por abajo. Con empate en la
+ * raya se parte en dos —verde antes del primer empatado y roja después del
+ * último— y los empatados quedan encerrados entre ambas, que es justo lo que
+ * hay que ver: ahí el corte lo ha decidido el desempate y no la nota.
+ *
+ * Sólo tiene sentido con las filas en orden de puntuación, que es cuando los
+ * empatados van seguidos. Devuelve un array del largo de las filas con la raya
+ * que toca justo ANTES de cada una, o null.
+ */
+export function rayasDelCorte(filas) {
+  const rayas = filas.map(() => null);
+  const primerEmpate = filas.findIndex((fila) => fila.empatadoEnLaRaya);
+
+  if (primerEmpate >= 0) {
+    const ultimoEmpate = filas.findLastIndex((fila) => fila.empatadoEnLaRaya);
+    rayas[primerEmpate] = 'verde';
+    if (ultimoEmpate + 1 < filas.length) rayas[ultimoEmpate + 1] = 'rojo';
+    return rayas;
+  }
+
+  const ultimo = filas.findIndex((fila) => fila.ultimoQuePasa);
+  if (ultimo >= 0 && ultimo + 1 < filas.length) rayas[ultimo + 1] = 'ambos';
+  return rayas;
+}
+
 export function renombrarJurado(filtros, idJurado, nombre) {
   const limpio = (nombre ?? '').trim();
   if (!limpio) return filtros;

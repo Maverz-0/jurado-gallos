@@ -185,6 +185,12 @@ Desde el resultado o desde el detalle del historial, en dos formatos:
   se ve como una foto, sin que nadie tenga que abrir nada.
 - **Texto**: el mismo acta para pegar en un chat.
 
+La clasificación de unos filtros se comparte con lo mismo que se ve en
+pantalla: los colores de cada casilla, la raya del corte —partida si hay
+empate— y la leyenda que los explica. La raya sale de `rayasDelCorte`, en
+`filters.js`, que es de donde la saca también la tabla: si sólo lo supiera una
+de las dos, la imagen acabaría contando otra cosa.
+
 Se entregan por `navigator.share`; donde no exista, se descargan.
 
 ### El esquema de datos ha cambiado dos veces

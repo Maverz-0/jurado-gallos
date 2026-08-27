@@ -37,6 +37,11 @@ const PAPEL = '#ffffff';
 const CUADRO = '#f2f2f7';
 const AZUL = '#007aff';
 const NARANJA = '#ff9500';
+const ROJO = '#ff3b30';
+/* El amarillo del sistema sirve para teñir un fondo, pero sobre papel blanco
+   no se lee: los números del empate van en un tono oscuro del mismo color. */
+const AMARILLO = '#ffcc00';
+const AMARILLO_TINTA = '#8a6a00';
 
 const FUENTE = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 const FUENTE_FIRMA = 'ui-serif, "New York", Georgia, "Times New Roman", serif';
@@ -293,6 +298,27 @@ function recortarTexto(pincel, texto, x, y, ancho) {
 
 const VERDE = '#34c759';
 const ANCHO_PUESTO = 56;
+const ALTO_RAYA = 20;
+
+/**
+ * La raya del corte, degradada hacia fuera para que no parezca un borde más:
+ * verde por el lado de los que pasan y roja por el de los que no. Cuando el
+ * corte lo ha decidido un desempate viene partida, y entonces cada mitad va
+ * de un solo color.
+ */
+function rayaDelCorte(pincel, x, y, ancho, cual) {
+  const arriba = cual === 'rojo' ? ROJO : VERDE;
+  const abajo = cual === 'verde' ? VERDE : ROJO;
+
+  const tinte = pincel.createLinearGradient(0, y, 0, y + ALTO_RAYA);
+  tinte.addColorStop(0, `${arriba}00`);
+  tinte.addColorStop(0.44, arriba);
+  tinte.addColorStop(0.56, abajo);
+  tinte.addColorStop(1, `${abajo}00`);
+
+  pincel.fillStyle = tinte;
+  pincel.fillRect(x, y, ancho, ALTO_RAYA);
+}
 
 /**
  * El acta de unos filtros es una tabla, no una lista de tramos, así que se
@@ -308,7 +334,8 @@ export function dibujarClasificacion(acta) {
   );
 
   const altoCabecera = 150;
-  const altoTabla = 52 + acta.filas.length * 56;
+  const cuantasRayas = acta.filas.filter((fila) => fila.raya).length;
+  const altoTabla = 52 + acta.filas.length * 56 + cuantasRayas * ALTO_RAYA;
   // La escala puede ocupar varias líneas, así que hay que medirla antes.
   const lineasEscala = partir(acta.escala, ancho - MARGEN * 2, 19);
   const altoLeyenda = 60 + lineasEscala.length * 26 + acta.colores.length * 28 + 50;
@@ -360,23 +387,28 @@ export function dibujarClasificacion(acta) {
   y += 10;
 
   for (const fila of acta.filas) {
+    if (fila.raya) {
+      rayaDelCorte(pincel, MARGEN, y, ancho - MARGEN * 2, fila.raya);
+      y += ALTO_RAYA;
+    }
+
     const centro = y + 28;
 
-    pincel.fillStyle = TINTA;
+    pincel.fillStyle = fila.empate ? AMARILLO_TINTA : TINTA;
     pincel.font = `400 23px ${FUENTE}`;
     recortarTexto(pincel, fila.nombre, MARGEN, centro, ANCHO_NOMBRE - 16);
 
     pincel.textAlign = 'center';
     fila.notas.forEach((nota, i) => {
       const x = xDe(i);
-      if (nota.verde || nota.ambar) {
-        pincel.fillStyle = nota.verde ? VERDE : NARANJA;
+      if (nota.verde || nota.azul) {
+        pincel.fillStyle = nota.verde ? VERDE : AZUL;
         pincel.globalAlpha = 0.2;
         redondeado(pincel, x + 14, y + 6, anchoCelda - 28, 44, 9);
         pincel.fill();
         pincel.globalAlpha = 1;
       }
-      pincel.fillStyle = nota.verde ? VERDE : nota.ambar ? NARANJA : TINTA;
+      pincel.fillStyle = nota.verde ? VERDE : nota.azul ? AZUL : TINTA;
       pincel.font = `600 23px ${FUENTE}`;
       pincel.fillText(nota.texto, x + anchoCelda / 2, centro);
     });
@@ -387,9 +419,17 @@ export function dibujarClasificacion(acta) {
       pincel.fillText(fila.total, xDe(acta.jurados.length) + anchoCelda / 2, centro);
     }
 
-    pincel.fillStyle = fila.clasifica ? VERDE : TENUE;
+    const xPuesto = xDe(columnas);
+    if (fila.empate) {
+      pincel.fillStyle = AMARILLO;
+      pincel.globalAlpha = 0.26;
+      redondeado(pincel, xPuesto + 6, y + 6, ANCHO_PUESTO - 12, 44, 7);
+      pincel.fill();
+      pincel.globalAlpha = 1;
+    }
+    pincel.fillStyle = fila.empate ? AMARILLO_TINTA : fila.clasifica ? VERDE : TENUE;
     pincel.font = `700 23px ${FUENTE}`;
-    pincel.fillText(fila.posicion, xDe(columnas) + ANCHO_PUESTO / 2, centro);
+    pincel.fillText(fila.posicion, xPuesto + ANCHO_PUESTO / 2, centro);
     pincel.textAlign = 'left';
 
     y += 56;
@@ -410,9 +450,10 @@ export function dibujarClasificacion(acta) {
   }
 
   y += 10;
+  const MARCAS = { verde: VERDE, azul: AZUL, amarillo: AMARILLO };
   for (const { color, texto } of acta.colores) {
-    pincel.fillStyle = color === 'verde' ? VERDE : NARANJA;
-    pincel.globalAlpha = 0.3;
+    pincel.fillStyle = MARCAS[color] ?? TENUE;
+    pincel.globalAlpha = 0.45;
     redondeado(pincel, MARGEN, y - 9, 18, 18, 5);
     pincel.fill();
     pincel.globalAlpha = 1;
@@ -426,6 +467,13 @@ export function dibujarClasificacion(acta) {
   return lienzo;
 }
 
+/** En texto la raya del corte se dibuja con guiones, que es lo que hay. */
+const RAYA_EN_TEXTO = {
+  ambos: '——————— corte ———————',
+  verde: '——————— corte, con empate ———————',
+  rojo: '——————— fin del empate ———————',
+};
+
 export function clasificacionComoTexto(acta) {
   const lineas = [
     'CLASIFICACIÓN',
@@ -434,6 +482,7 @@ export function clasificacionComoTexto(acta) {
   ];
 
   for (const fila of acta.filas) {
+    if (fila.raya) lineas.push(RAYA_EN_TEXTO[fila.raya]);
     const notas = fila.notas
       .map((nota, i) => `${acta.jurados[i].nombre}: ${nota.texto}`)
       .join('  ');
@@ -443,7 +492,12 @@ export function clasificacionComoTexto(acta) {
     );
   }
 
-  lineas.push('', '* clasifica', acta.escala, '', `Jurado de gallos · ${FIRMA}`);
+  lineas.push('', '* clasifica');
+  if (acta.hayEmpate) {
+    lineas.push('Los que van entre las dos rayas empatan justo en el corte:');
+    lineas.push('ahí lo ha decidido el desempate y no la puntuación.');
+  }
+  lineas.push(acta.escala, '', `Jurado de gallos · ${FIRMA}`);
   return `${lineas.join('\n')}\n`;
 }
 

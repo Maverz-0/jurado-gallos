@@ -570,21 +570,8 @@ export function crearVistaFiltros({
     });
 
     // La raya del corte sólo tiene sentido con las filas ordenadas por nota.
-    const conCorte = orden === 'puntuacion';
-    const primerEmpate = filas.findIndex((fila) => fila.empatadoEnLaRaya);
-    const ultimoEmpate = filas.findLastIndex((fila) => fila.empatadoEnLaRaya);
-    const trasElUltimo = filas.findIndex((fila) => fila.ultimoQuePasa) + 1;
-
-    /** Qué raya toca justo antes de la fila `i`, si es que toca alguna. */
-    const rayaAntesDe = (i) => {
-      if (!conCorte) return null;
-      if (primerEmpate >= 0) {
-        if (i === primerEmpate) return 'verde';
-        if (i === ultimoEmpate + 1) return 'rojo';
-        return null;
-      }
-      return trasElUltimo > 0 && i === trasElUltimo ? 'ambos' : null;
-    };
+    const rayas =
+      orden === 'puntuacion' ? filtros.rayasDelCorte(filas) : filas.map(() => null);
 
     const raya = (cual) => {
       const nodo = document.createElement('div');
@@ -597,7 +584,7 @@ export function crearVistaFiltros({
     const cuerpo = [el.tablaCabecera];
 
     filas.forEach((fila, i) => {
-      const cual = rayaAntesDe(i);
+      const cual = rayas[i];
       if (cual) {
         nombres.push(raya(cual));
         cuerpo.push(raya(cual));
@@ -1224,33 +1211,48 @@ export function crearVistaFiltros({
     });
   });
 
-  /** Lo que se comparte: la tabla ya resuelta, con sus colores y su leyenda. */
+  /**
+   * Lo que se comparte: la tabla ya resuelta, con sus colores, sus rayas y su
+   * leyenda. Tiene que enseñar lo mismo que la pantalla, así que la raya del
+   * corte sale de la misma función que la pinta ahí.
+   */
   function actaDeLaClasificacion() {
     const filas = filtros.clasificacion(ahora, { orden });
     const conTotal = ahora.jurados.length > 1;
+    const hayEmpate = filas.some((fila) => fila.empatadoEnLaRaya);
+    const rayas =
+      orden === 'puntuacion' ? filtros.rayasDelCorte(filas) : filas.map(() => null);
     const segunCadaUno = new Map(
       ahora.jurados.map((j) => [j.id, filtros.clasificariaSegun(ahora, j.id)])
     );
+
+    const colores = [
+      { color: 'verde', texto: 'Habría clasificado con ese jurado, y clasifica.' },
+      {
+        color: 'azul',
+        texto: `Habría clasificado con ese jurado, pero no ${conTotal ? 'en la suma' : 'al final'}.`,
+      },
+    ];
+    if (hayEmpate) {
+      colores.push({ color: 'amarillo', texto: 'Empatado justo en la raya del corte.' });
+    }
 
     return {
       fecha: new Date().toISOString(),
       clasifican: ahora.clasifican,
       conTotal,
+      hayEmpate,
       jurados: ahora.jurados.map((jurado) => ({ id: jurado.id, nombre: jurado.nombre })),
-      escala: `Notas de 0 a ${ahora.notaMaxima}. La de cada uno es la media de sus ${ahora.intervenciones} intervenciones, redondeada a ${ahora.redondeo === 'medios' ? 'medios puntos' : 'enteros'}.`,
-      colores: [
-        { color: 'verde', texto: 'Habría clasificado con ese jurado, y clasifica.' },
-        {
-          color: 'ambar',
-          texto: `Habría clasificado con ese jurado, pero no ${conTotal ? 'en la suma' : 'al final'}.`,
-        },
-      ],
-      filas: filas.map((fila) => {
+      escala: `Notas de 0 a ${ahora.notaMaxima}.`,
+      colores,
+      filas: filas.map((fila, i) => {
         const donde = ahora.participantes.findIndex((p) => p.id === fila.participante.id);
         return {
           nombre: comoSeLlama(fila.participante, donde),
           posicion: String(fila.posicion),
           clasifica: fila.clasifica,
+          empate: fila.empatadoEnLaRaya,
+          raya: rayas[i],
           total: filtros.comoSeEscribe(fila.total),
           notas: ahora.jurados.map((jurado) => {
             const nota = filtros.notaDe(ahora, jurado.id, fila.participante.id);
@@ -1258,7 +1260,7 @@ export function crearVistaFiltros({
             return {
               texto: nota === null ? '—' : filtros.comoSeEscribe(nota),
               verde: habria && fila.clasifica,
-              ambar: habria && !fila.clasifica,
+              azul: habria && !fila.clasifica,
             };
           }),
         };
