@@ -453,22 +453,32 @@ export function crearVistaFiltros({
     );
   }
 
+  /**
+   * Guarda y cierra: los filtros quedan en Resultados anteriores y se vuelve
+   * al inicio. Se suelta el borrador porque ya no hay nada a medias, y si algo
+   * falla al guardar no se cierra nada y se avisa ahí mismo.
+   */
   async function guardar() {
     el.btnGuardar.disabled = true;
     el.btnAviso.textContent = '';
 
     try {
-      const registro = await guardarFiltros(ahora, guardadoComo);
-      guardadoComo = registro.id;
-      el.btnAviso.textContent = 'Guardado en Resultados anteriores.';
-      poner(el.btnGuardar, 'Guardar cambios');
-      apuntarBorrador();
+      await guardarFiltros(ahora, guardadoComo);
     } catch (error) {
       console.error('No se han podido guardar los filtros:', error);
       el.btnAviso.textContent = 'No se ha podido guardar. Inténtalo otra vez.';
-    } finally {
       el.btnGuardar.disabled = false;
+      return;
     }
+
+    el.btnGuardar.disabled = false;
+    el.btnAviso.textContent = '';
+    ahora = null;
+    guardadoComo = null;
+    plantilla.aspirantes = [];
+    soltarBorrador();
+    pintarPreparacion();
+    volverAlaRaiz();
   }
 
   /** Los abre desde el historial, directamente en su tabla. */
@@ -486,7 +496,6 @@ export function crearVistaFiltros({
     restaurando = true;
     montarTeclado();
     pintar({ seguirElGrupo: false });
-    poner(el.btnGuardar, 'Guardar cambios');
     el.btnAviso.textContent = '';
     pintarTabla();
     restaurando = false;
@@ -507,7 +516,6 @@ export function crearVistaFiltros({
     contador = Math.max(contador, datos.participantes.length);
 
     montarTeclado();
-    poner(el.btnGuardar, guardadoComo ? 'Guardar cambios' : 'Guardar');
     pintar();
     empujar('vista-filtros');
     return true;
@@ -561,22 +569,48 @@ export function crearVistaFiltros({
       else delete nodo.dataset.jurado;
     });
 
-    // El primer hijo de cada columna es el título y la cabecera.
-    ajustarHijos(el.tablaNombres, filas.length + 1, () => clonar(el.tplTablaNombre));
-    ajustarHijos(el.tablaCuerpo, filas.length + 1, () => clonar(el.tplTablaFila));
-
     // La raya del corte sólo tiene sentido con las filas ordenadas por nota.
     const conCorte = orden === 'puntuacion';
+    const primerEmpate = filas.findIndex((fila) => fila.empatadoEnLaRaya);
+    const ultimoEmpate = filas.findLastIndex((fila) => fila.empatadoEnLaRaya);
+    const trasElUltimo = filas.findIndex((fila) => fila.ultimoQuePasa) + 1;
+
+    /** Qué raya toca justo antes de la fila `i`, si es que toca alguna. */
+    const rayaAntesDe = (i) => {
+      if (!conCorte) return null;
+      if (primerEmpate >= 0) {
+        if (i === primerEmpate) return 'verde';
+        if (i === ultimoEmpate + 1) return 'rojo';
+        return null;
+      }
+      return trasElUltimo > 0 && i === trasElUltimo ? 'ambos' : null;
+    };
+
+    const raya = (cual) => {
+      const nodo = document.createElement('div');
+      nodo.className = `separador separador--${cual}`;
+      return nodo;
+    };
+
+    // El primer hijo de cada columna es el título y la cabecera, y se conservan.
+    const nombres = [el.tablaNombres.firstElementChild];
+    const cuerpo = [el.tablaCabecera];
 
     filas.forEach((fila, i) => {
-      const donde = ahora.participantes.findIndex((p) => p.id === fila.participante.id);
-      const celdaNombre = el.tablaNombres.children[i + 1];
-      poner(celdaNombre, comoSeLlama(fila.participante, donde));
-      celdaNombre.classList.toggle('tabla__nombre--corte', conCorte && fila.ultimoQuePasa);
-      celdaNombre.classList.toggle('tabla__nombre--empate', fila.empatadoEnLaRaya);
+      const cual = rayaAntesDe(i);
+      if (cual) {
+        nombres.push(raya(cual));
+        cuerpo.push(raya(cual));
+      }
 
-      const nodo = el.tablaCuerpo.children[i + 1];
-      nodo.classList.toggle('tabla__fila--corte', conCorte && fila.ultimoQuePasa);
+      const donde = ahora.participantes.findIndex((p) => p.id === fila.participante.id);
+      const celdaNombre = clonar(el.tplTablaNombre);
+      poner(celdaNombre, comoSeLlama(fila.participante, donde));
+      celdaNombre.classList.toggle('tabla__nombre--empate', fila.empatadoEnLaRaya);
+      nombres.push(celdaNombre);
+
+      const nodo = clonar(el.tplTablaFila);
+      cuerpo.push(nodo);
       ajustarHijos(nodo, columnas.length, () => clonar(el.tplTablaCelda));
 
       jurados.forEach((jurado, j) => {
@@ -614,11 +648,14 @@ export function crearVistaFiltros({
       puesto.classList.toggle('celda--empate', fila.empatadoEnLaRaya);
       poner(puesto, fila.posicion);
 
-      el.tablaNombres.children[i + 1].classList.toggle(
+      celdaNombre.classList.toggle(
         'tabla__nombre--apuntando',
         apuntando?.participante === fila.participante.id
       );
     });
+
+    el.tablaNombres.replaceChildren(...nombres);
+    el.tablaCuerpo.replaceChildren(...cuerpo);
 
     pintarLeyenda(conTotal, filas.some((fila) => fila.empatadoEnLaRaya));
     pintarTecladoDeJurado();
@@ -683,6 +720,7 @@ export function crearVistaFiltros({
     const nombre = await nombreSuelto({
       titulo: 'Añadir jurado',
       antes: 'Le meterás su nota para cada participante, uno detrás de otro.',
+      nota: '', // un jurado no va a ningún grupo
       marcador: `Jurado ${ahora.jurados.length + 1}`,
     });
     if (nombre === null) return;

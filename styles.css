@@ -521,16 +521,77 @@ button {
   transition: transform 200ms var(--curva);
 }
 
+/* ── Menú del inicio ────────────────────────────────────────────────────── */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+  margin-bottom: var(--e6);
+}
+
+.menu__opcion {
+  display: flex;
+  align-items: center;
+  gap: var(--e4);
+  width: 100%;
+  padding: var(--e4);
+  border: 0;
+  border-radius: var(--radio-tarjeta);
+  background: var(--superficie);
+  text-align: left;
+  transition: transform var(--transicion-pulsacion) ease-out;
+}
+
+.menu__opcion:active {
+  transform: scale(0.985);
+}
+
+.menu__marca {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+}
+
+.menu__marca svg {
+  width: 26px;
+  height: 26px;
+}
+
+.menu__marca--batalla {
+  background: color-mix(in srgb, var(--azul) 16%, transparent);
+  color: var(--azul);
+}
+
+.menu__marca--filtros {
+  background: color-mix(in srgb, var(--verde) 18%, transparent);
+  color: var(--verde);
+}
+
+.menu__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.menu__titulo {
+  font-size: var(--texto-titulo-seccion);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.menu__pie {
+  font-size: var(--texto-nota);
+  color: var(--texto-secundario);
+}
+
 /* ── Filtros ────────────────────────────────────────────────────────────── */
-
-.segmentado--modo {
-  margin-bottom: var(--e5);
-}
-
-.segmentado--modo .segmentado__opcion {
-  min-height: 36px;
-  font-size: var(--texto-cuerpo);
-}
 
 .segmentado__estrecho {
   flex: none;
@@ -597,19 +658,26 @@ button {
 
 .mando {
   display: none;
-  align-items: center;
   flex: none;
-  gap: 2px;
 }
 
 .editando .mando {
-  display: flex;
+  display: inline-flex;
 }
 
-/* Con el mando delante, el nombre necesita más sitio para no quedarse en
-   tres letras. La pista se reajusta al entrar y salir del modo. */
+/* El nombre empuja a los dos mandos a extremos opuestos. */
+.editando .pista__nombre {
+  flex: 1;
+}
+
+/**
+ * Editando, la etiqueta se ensancha a una medida fija: es lo que separa el
+ * quitar del agarre, que pegados se confunden y se borra a alguien queriendo
+ * moverlo. El sitio sale de la zona de cuadritos, que se desliza igual.
+ */
 .editando .pista__etiqueta--participante {
-  max-width: 215px;
+  width: 168px;
+  max-width: 168px;
 }
 
 .mando__quitar svg {
@@ -670,6 +738,13 @@ button {
 .tabla__cuerpo {
   display: flex;
   flex-direction: column;
+}
+
+/* Al ancho de sus filas, y nunca menos que el carril: si no, la raya del corte
+   se cortaba en cuanto había columnas de sobra y no llegaba al final. */
+.tabla__cuerpo {
+  width: max-content;
+  min-width: 100%;
 }
 
 .tabla__carril {
@@ -778,28 +853,44 @@ button {
   color: var(--amarillo);
 }
 
-/* La línea de corte: verde por el lado de los que pasan, rojo por el de los
-   que no, y desvaneciéndose hacia fuera para que no parezca un borde más. */
-.tabla__nombre,
-.tabla__fila {
-  position: relative;
+/**
+ * La línea de corte va como fila propia entre las dos columnas, no como un
+ * borde que sobresale: así cubre todo el ancho y ninguna celda la tapa.
+ *
+ * Sin empate es una sola, verde por el lado de los que pasan y roja por el de
+ * los que no. Con empate se parte en dos y los empatados quedan encerrados
+ * entre ambas, que es justo lo que hay que ver.
+ */
+.separador {
+  flex: none;
+  align-self: stretch;
+  height: 16px;
 }
 
-.tabla__nombre--corte::after,
-.tabla__fila--corte::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -8px;
-  height: 16px;
-  z-index: 1;
-  pointer-events: none;
+.separador--ambos {
   background: linear-gradient(
     to bottom,
     transparent,
-    color-mix(in srgb, var(--verde) 70%, transparent) 44%,
-    color-mix(in srgb, var(--rojo) 70%, transparent) 56%,
+    color-mix(in srgb, var(--verde) 75%, transparent) 44%,
+    color-mix(in srgb, var(--rojo) 75%, transparent) 56%,
+    transparent
+  );
+}
+
+.separador--verde {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--verde) 75%, transparent) 50%,
+    transparent
+  );
+}
+
+.separador--rojo {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--rojo) 75%, transparent) 50%,
     transparent
   );
 }

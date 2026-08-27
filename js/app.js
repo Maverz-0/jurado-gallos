@@ -61,9 +61,11 @@ const EXPLICACIONES = {
 const $ = (id) => document.getElementById(id);
 
 const el = {
-  modo: $('modo'),
+  btnModoBatalla: $('btn-modo-batalla'),
+  btnModoFiltros: $('btn-modo-filtros'),
+  btnCerrarBatalla: $('btn-cerrar-batalla'),
+  btnCerrarNuevosFiltros: $('btn-cerrar-nuevos-filtros'),
   formNueva: $('form-nueva'),
-  formFiltros: $('form-filtros'),
   lista: $('lista-batalleros'),
   btnAnadir: $('btn-anadir'),
   listaTramos: $('lista-tramos'),
@@ -922,18 +924,6 @@ const vistaFiltros = crearVistaFiltros({
   compartir,
 });
 
-// ── Batalla o filtros ──────────────────────────────────────────────────────
-
-function elegirModo(cual) {
-  const filtros = cual === 'filtros';
-  el.formNueva.hidden = filtros;
-  el.formFiltros.hidden = !filtros;
-
-  for (const opcion of el.modo.children) {
-    opcion.setAttribute('aria-pressed', String(opcion.dataset.modo === cual));
-  }
-}
-
 // ── Batalla en curso a salvo ───────────────────────────────────────────────
 
 /**
@@ -1271,10 +1261,10 @@ async function compartir(
 // ── Enlaces ────────────────────────────────────────────────────────────────
 
 el.formNueva.addEventListener('submit', empezarBatalla);
-el.modo.addEventListener('click', (evento) => {
-  const opcion = evento.target.closest('[data-modo]');
-  if (opcion) elegirModo(opcion.dataset.modo);
-});
+el.btnModoBatalla.addEventListener('click', () => empujar('vista-nueva-batalla'));
+el.btnModoFiltros.addEventListener('click', () => empujar('vista-nuevos-filtros'));
+el.btnCerrarBatalla.addEventListener('click', sacar);
+el.btnCerrarNuevosFiltros.addEventListener('click', sacar);
 el.btnAnadir.addEventListener('click', anadirBatallero);
 el.btnAnadirTramo.addEventListener('click', anadirTramoAlaPlantilla);
 el.notaMenos.addEventListener('click', () => moverNotaMaxima(-1));

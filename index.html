@@ -29,13 +29,97 @@
         </header>
 
         <div class="vista__cuerpo">
-          <!-- Dos cosas distintas: una batalla se suma, unos filtros se
-               promedian y clasifican. Cada modo trae su propia preparación. -->
-          <div class="segmentado segmentado--modo" id="modo" role="group" aria-label="Qué se va a puntuar">
-            <button class="segmentado__opcion" type="button" data-modo="batalla" aria-pressed="true">Batalla</button>
-            <button class="segmentado__opcion" type="button" data-modo="filtros" aria-pressed="false">Filtros</button>
+          <div class="recordatorio recordatorio--destacado" id="aviso-borrador" hidden>
+            <p class="recordatorio__texto" id="aviso-borrador-texto"></p>
+            <button class="recordatorio__accion" type="button" id="btn-retomar">
+              Retomar
+            </button>
           </div>
 
+          <div class="recordatorio recordatorio--destacado" id="aviso-version" hidden>
+            <p class="recordatorio__texto">Hay una versión nueva de la app.</p>
+            <button class="recordatorio__accion" type="button" id="btn-actualizar">
+              Actualizar
+            </button>
+          </div>
+
+          <div class="recordatorio" id="aviso-copia" hidden>
+            <p class="recordatorio__texto" id="aviso-copia-texto"></p>
+            <button class="recordatorio__accion" type="button" id="btn-aviso-copia">
+              Hacer copia
+            </button>
+          </div>
+
+          <!-- Dos cosas distintas: una batalla se suma, unos filtros se
+               promedian y clasifican. Cada una trae su propia preparación. -->
+          <div class="menu">
+            <button class="menu__opcion" type="button" id="btn-modo-batalla">
+              <span class="menu__marca menu__marca--batalla" aria-hidden="true">
+                <svg viewBox="0 0 26 26" focusable="false">
+                  <path d="M6 20V9M13 20V4M20 20v-7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                </svg>
+              </span>
+              <span class="menu__texto">
+                <span class="menu__titulo">Batalla</span>
+                <span class="menu__pie">De dos a diez gallos, por tramos y con réplica</span>
+              </span>
+              <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            <button class="menu__opcion" type="button" id="btn-modo-filtros">
+              <span class="menu__marca menu__marca--filtros" aria-hidden="true">
+                <svg viewBox="0 0 26 26" focusable="false">
+                  <path d="M4 7h18M7 13h12M10 19h6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+                </svg>
+              </span>
+              <span class="menu__texto">
+                <span class="menu__titulo">Filtros</span>
+                <span class="menu__pie">Participantes por grupos, con media y clasificación</span>
+              </span>
+              <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="grupo">
+            <div class="tarjeta">
+              <button class="fila fila--enlace" type="button" id="btn-historial">
+                <span class="fila__titulo fila__titulo--ancho">Resultados anteriores</span>
+                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                  <path d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button class="fila fila--enlace" type="button" id="btn-copia">
+                <span class="fila__titulo fila__titulo--ancho">Copia de seguridad</span>
+                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                  <path d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────────────────── Nueva batalla ────────────────────── -->
+      <section class="vista" id="vista-nueva-batalla" aria-label="Nueva batalla" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="btn-cerrar-batalla">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Inicio
+            </button>
+            <h2 class="barra__titulo barra__titulo--oculto">Nueva batalla</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+          <h1 class="titulo-grande">Nueva batalla</h1>
+        </header>
+
+        <div class="vista__cuerpo">
           <form class="grupo" id="form-nueva">
             <p class="grupo__encabezado">Batalleros</p>
             <div class="tarjeta" id="lista-batalleros"></div>
@@ -103,8 +187,27 @@
               Empezar batalla
             </button>
           </form>
+        </div>
+      </section>
 
-          <form class="grupo" id="form-filtros" hidden>
+      <!-- ────────────────────── Nuevos filtros ───────────────────── -->
+      <section class="vista" id="vista-nuevos-filtros" aria-label="Nuevos filtros" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="btn-cerrar-nuevos-filtros">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Inicio
+            </button>
+            <h2 class="barra__titulo barra__titulo--oculto">Nuevos filtros</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+          <h1 class="titulo-grande">Nuevos filtros</h1>
+        </header>
+
+        <div class="vista__cuerpo">
+          <form class="grupo" id="form-filtros">
             <p class="grupo__encabezado">Participantes</p>
             <div class="tarjeta" id="lista-aspirantes"></div>
 
@@ -200,58 +303,6 @@
               Empezar filtros
             </button>
           </form>
-
-          <div class="recordatorio recordatorio--destacado" id="aviso-borrador" hidden>
-            <p class="recordatorio__texto" id="aviso-borrador-texto"></p>
-            <button class="recordatorio__accion" type="button" id="btn-retomar">
-              Retomar
-            </button>
-          </div>
-
-          <div class="recordatorio recordatorio--destacado" id="aviso-version" hidden>
-            <p class="recordatorio__texto">Hay una versión nueva de la app.</p>
-            <button class="recordatorio__accion" type="button" id="btn-actualizar">
-              Actualizar
-            </button>
-          </div>
-
-          <div class="recordatorio" id="aviso-copia" hidden>
-            <p class="recordatorio__texto" id="aviso-copia-texto"></p>
-            <button class="recordatorio__accion" type="button" id="btn-aviso-copia">
-              Hacer copia
-            </button>
-          </div>
-
-          <div class="grupo">
-            <div class="tarjeta">
-              <button class="fila fila--enlace" type="button" id="btn-historial">
-                <span class="fila__titulo fila__titulo--ancho">Resultados anteriores</span>
-                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
-                  <path
-                    d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.4"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-              <button class="fila fila--enlace" type="button" id="btn-copia">
-                <span class="fila__titulo fila__titulo--ancho">Copia de seguridad</span>
-                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
-                  <path
-                    d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2.4"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -467,6 +518,17 @@
           </div>
           <p class="grupo__pie" id="corte"></p>
 
+          <!-- Arriba y a la vista: añadir un jurado no debería obligar a
+               deslizar hasta el final de la tabla. -->
+          <div class="anadidos anadidos--fijos">
+            <button class="anadidos__accion" type="button" id="cbtn-jurado">
+              Añadir jurado
+            </button>
+            <button class="anadidos__accion" type="button" id="cbtn-compartir">
+              Compartir
+            </button>
+          </div>
+
           <!-- Los nombres se quedan fijos y las columnas de jurados se
                deslizan, igual que la pista de intervenciones. -->
           <div class="tabla">
@@ -482,17 +544,9 @@
 
           <p class="leyenda" id="leyenda"></p>
 
-          <div class="anadidos">
-            <button class="anadidos__accion" type="button" id="cbtn-jurado">
-              Añadir jurado
-            </button>
-            <button class="anadidos__accion" type="button" id="cbtn-guardar">
-              Guardar
-            </button>
-            <button class="anadidos__accion" type="button" id="cbtn-compartir">
-              Compartir
-            </button>
-          </div>
+          <button class="boton boton--principal boton--separado" type="button" id="cbtn-guardar">
+            Guardar y cerrar
+          </button>
           <p class="grupo__pie" id="cbtn-aviso" role="status"></p>
         </div>
 
@@ -920,20 +974,20 @@
          sin querer junto a los cuadritos. -->
     <template id="tpl-etiqueta-participante">
       <span class="pista__etiqueta pista__etiqueta--participante">
-        <span class="mando">
-          <button class="signo signo--quitar mando__quitar" type="button" aria-label="Quitar participante">
-            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
-              <circle cx="11" cy="11" r="9.2" fill="currentColor" />
-              <path d="M6.6 11h8.8" fill="none" stroke="var(--superficie)" stroke-width="2.2" stroke-linecap="round" />
-            </svg>
-          </button>
-          <button class="agarre mando__agarre" type="button" aria-label="Arrastrar para reordenar">
-            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
-              <path d="M4 7.5h14M4 11h14M4 14.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-            </svg>
-          </button>
-        </span>
+        <!-- Quitar a un lado y arrastrar al otro, con el nombre en medio: si
+             están pegados es fácil borrar a alguien queriendo moverlo. -->
+        <button class="signo signo--quitar mando mando__quitar" type="button" aria-label="Quitar participante">
+          <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <circle cx="11" cy="11" r="9.2" fill="currentColor" />
+            <path d="M6.6 11h8.8" fill="none" stroke="var(--superficie)" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+        </button>
         <span class="pista__nombre"></span>
+        <button class="agarre mando mando__agarre" type="button" aria-label="Arrastrar para reordenar">
+          <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <path d="M4 7.5h14M4 11h14M4 14.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </button>
       </span>
     </template>
 

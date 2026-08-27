@@ -61,7 +61,7 @@ python tools/generar-iconos.py   # necesita Pillow
 ## Cómo está montado
 
 ```
-index.html      las cinco vistas
+index.html      las diez vistas
 styles.css      sistema de diseño iOS, con todos los valores en :root
 sw.js           precacheo y aviso de versión nueva
 manifest.json
@@ -82,11 +82,17 @@ js/
 `storage.js` es la única frontera con IndexedDB, de modo que cambiar el
 almacenamiento por uno en la nube es reescribir ese archivo y nada más.
 
+## El inicio
+
+Sólo cuatro cosas: **Batalla**, **Filtros**, **Resultados anteriores** y **Copia
+de seguridad**. Cada modo abre su propia pantalla de preparación, así que el
+inicio no enseña nunca opciones de algo que todavía no has elegido.
+
 ## Gallos
 
-Se preparan en la pantalla de inicio: entre 2 y 10, reordenables arrastrando
-por el agarre de la derecha. El orden que quede es el turno de intervención.
-Los nombres en blanco se llaman «Gallo A», «Gallo B»…
+Se preparan en **Batalla**: entre 2 y 10, reordenables arrastrando por el
+agarre de la derecha. El orden que quede es el turno de intervención. Los
+nombres en blanco se llaman «Gallo A», «Gallo B»…
 
 Puntuando, el gallo en turno se ve con el cuadro relleno de azul y su fila
 teñida. Tocar un marcador lleva el cursor a ese gallo; tocar un cuadrito ya
@@ -126,10 +132,9 @@ regresar.
 
 ## Filtros
 
-Un modo aparte, elegido en el inicio. No es una batalla: hay un número
-indefinido de participantes repartidos en grupos, todos hacen las mismas
-intervenciones y al final clasifican los mejores **del conjunto**, no de su
-grupo.
+El otro modo del inicio. No es una batalla: hay un número indefinido de
+participantes repartidos en grupos, todos hacen las mismas intervenciones y al
+final clasifican los mejores **del conjunto**, no de su grupo.
 
 - La nota de cada uno es la **media** de sus intervenciones, redondeada a medios
   o a enteros (con medios, un 3,4 se queda en 3,5). También se puede apagar el
@@ -139,10 +144,11 @@ grupo.
 - Se puede empezar **sin nadie** y apuntar sobre la marcha. Quien llega tarde va
   al último grupo incompleto o abre uno nuevo, y también se le puede meter a la
   fuerza en uno lleno.
-- **Editar** saca los mandos de quitar y arrastrar. Fuera de ese modo no hay
-  nada que tocar sin querer junto a los cuadritos. El arrastre cruza grupos: se
-  puede cambiar el turno dentro de uno o pasar a otro distinto, y las notas
-  viajan con quien se mueve.
+- **Editar** saca los mandos de quitar y arrastrar, uno a cada lado del nombre
+  para no borrar a nadie queriendo moverlo. Fuera de ese modo no hay nada que
+  tocar sin querer junto a los cuadritos. El arrastre cruza grupos: se puede
+  cambiar el turno dentro de uno o pasar a otro distinto, y las notas viajan
+  con quien se mueve.
 - Se guardan y se recuperan como las batallas: van a **Resultados anteriores**,
   se pueden reabrir para seguir añadiéndoles jurados, y lo que quede a medias se
   ofrece al volver a abrir la app.
@@ -164,7 +170,12 @@ dónde discrepan los jurados.
 
 Entre el último que pasa y el primero que no hay una raya, verde por arriba y
 roja por abajo. Y si los dos llevan la misma puntuación, el corte lo ha decidido
-el desempate y no la nota: los empatados salen en **amarillo**.
+el desempate y no la nota: los empatados salen en **amarillo** y la raya se
+parte en dos, la verde por encima del primero y la roja por debajo del último,
+de modo que se ve de un vistazo a quiénes les cabe discusión.
+
+**Guardar y cerrar** los deja en Resultados anteriores y vuelve al inicio.
+Reabrirlos desde allí y volver a guardar sobrescribe el mismo registro.
 
 ## Compartir
 
