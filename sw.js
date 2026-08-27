@@ -6,7 +6,7 @@
  * desde la caché y no verán el cambio nunca.
  */
 
-const CACHE = 'jurado-gallos-v7';
+const CACHE = 'jurado-gallos-v8';
 
 /** Todo lo que hace falta para arrancar. Rutas relativas: esto vive en un
     subdirectorio de github.io, donde una ruta absoluta se saldría del sitio. */

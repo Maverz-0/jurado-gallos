@@ -15,14 +15,15 @@ import { guardarFiltros, guardarBorrador, olvidarBorrador } from './storage.js';
 
 const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-/** Cómo se reparten los cuadros del grupo en curso según cuántos sean. */
-const REPARTO = [
-  { hasta: 2, columnas: 2, cifra: 'clamp(34px, 11vw, 48px)' },
-  { hasta: 3, columnas: 3, cifra: 'clamp(28px, 9vw, 38px)' },
-  { hasta: 4, columnas: 2, cifra: 'clamp(30px, 10vw, 42px)' },
-  { hasta: 6, columnas: 3, cifra: 'clamp(24px, 7vw, 32px)' },
-  { hasta: 8, columnas: 4, cifra: 'clamp(20px, 6vw, 28px)' },
-  { hasta: 12, columnas: 4, cifra: 'clamp(18px, 5vw, 24px)' },
+/**
+ * Cuántas columnas de cuadros del grupo en curso. Van en pequeño y en una
+ * línea: aquí no se decide nada, sólo sirven para orientarse, y el sitio lo
+ * necesitan las filas de votación.
+ */
+const COLUMNAS = [
+  { hasta: 3, columnas: 1 },
+  { hasta: 8, columnas: 2 },
+  { hasta: 12, columnas: 3 },
 ];
 
 export function crearVistaFiltros({
@@ -294,12 +295,12 @@ export function crearVistaFiltros({
   function pintarMarcadores() {
     const grupo = grupoEnCurso();
     const miembros = grupo?.miembros ?? [];
-    const reparto = REPARTO.find((r) => miembros.length <= r.hasta) ?? REPARTO.at(-1);
+    const reparto = COLUMNAS.find((r) => miembros.length <= r.hasta) ?? COLUMNAS.at(-1);
 
     poner(el.grupoTitulo, grupo ? `Grupo ${grupo.numero}` : '');
     el.grupoTitulo.hidden = !grupo;
+    el.marcadores.classList.add('marcadores--mini');
     el.marcadores.style.setProperty('--columnas', reparto.columnas);
-    el.marcadores.style.setProperty('--texto-marcador', reparto.cifra);
     ajustarHijos(el.marcadores, miembros.length, () => clonar(el.tplMarcador));
 
     miembros.forEach((participante, i) => {
@@ -813,15 +814,54 @@ export function crearVistaFiltros({
 
   let arrastre = null;
 
+  /** Cuánto hay que acercarse a un borde para que la lista empiece a moverse. */
+  const ORILLA = 64;
+
   /**
-   * El arrastre cruza los grupos, no sólo reordena dentro del suyo. Entre unos
-   * y otros hay cabeceras, así que las filas no están a intervalos regulares y
-   * no vale dividir el recorrido entre un alto: hay que medir dónde está cada
-   * una y quedarse con la más cercana al dedo.
+   * Los sitios donde puede caer alguien: antes de cada fila y **también** al
+   * final de cada grupo.
    *
-   * Por lo mismo tampoco se aparta nada para hacer hueco (quedaría torcido con
-   * las cabeceras en medio): el sitio de destino se marca con una raya.
+   * Ese último hace falta porque «el final del grupo 1» y «el principio del
+   * grupo 2» son dos sitios distintos aunque estén pegados en pantalla, y sin
+   * distinguirlos la raya señalaba uno y se metía en el otro.
    */
+  function medirHuecos() {
+    const huecos = [];
+
+    for (const grupo of filtros.grupos(ahora)) {
+      let ultima = null;
+
+      grupo.miembros.forEach((miembro, j) => {
+        const nodo = el.bloques.querySelector(
+          `.pista__etiqueta--participante[data-id="${miembro.id}"]`
+        );
+        if (!nodo) return;
+
+        const caja = nodo.getBoundingClientRect();
+        huecos.push({
+          grupo: grupo.interno,
+          posicion: j,
+          y: caja.top,
+          id: miembro.id,
+          borde: 'arriba',
+        });
+        ultima = { id: miembro.id, caja };
+      });
+
+      if (ultima) {
+        huecos.push({
+          grupo: grupo.interno,
+          posicion: grupo.miembros.length,
+          y: ultima.caja.bottom,
+          id: ultima.id,
+          borde: 'abajo',
+        });
+      }
+    }
+
+    return huecos;
+  }
+
   function empezarArrastre(evento) {
     const agarre = evento.target.closest('.mando__agarre');
     if (!agarre || arrastre || !editando) return;
@@ -830,105 +870,138 @@ export function crearVistaFiltros({
     const etiqueta = agarre.closest('.pista__etiqueta--participante');
     if (!etiqueta) return;
 
-    const orden = filtros.enOrdenDeVoto(ahora);
-    const desde = orden.findIndex((x) => x.participante.id === etiqueta.dataset.id);
-    if (desde < 0) return;
-
-    // Dónde está cada fila ahora mismo, para comparar contra el dedo.
-    const sitios = orden.map((x) => {
-      const suya = el.bloques.querySelector(
-        `.pista__etiqueta--participante[data-id="${x.participante.id}"]`
-      );
-      const caja = suya.getBoundingClientRect();
-      return { ...x, centro: caja.top + caja.height / 2, nodo: suya };
-    });
+    const id = etiqueta.dataset.id;
+    const suyo = filtros.participanteDe(ahora, id);
+    const suGrupo = filtros.grupos(ahora).find((g) => g.interno === suyo?.grupo);
+    if (!suGrupo) return;
 
     arrastre = {
-      orden: sitios,
-      desde,
-      hasta: desde,
+      id,
+      grupoOriginal: suyo.grupo,
+      posicionOriginal: suGrupo.miembros.findIndex((m) => m.id === id),
+      huecos: medirHuecos(),
+      scroll0: el.desplazable.scrollTop,
       y0: evento.clientY,
+      yAhora: evento.clientY,
+      elegido: null,
       agarre,
       puntero: evento.pointerId,
-      id: etiqueta.dataset.id,
       etiqueta,
-      fila: el.bloques.querySelector(
-        `.pista__fila--participante[data-id="${etiqueta.dataset.id}"]`
-      ),
+      fila: el.bloques.querySelector(`.pista__fila--participante[data-id="${id}"]`),
+      tic: 0,
     };
 
-    arrastre.etiqueta.classList.add('participante--arrastrando');
+    etiqueta.classList.add('participante--arrastrando');
     arrastre.fila?.classList.add('participante--arrastrando');
-    marcarDestino(desde);
 
     agarre.setPointerCapture(evento.pointerId);
     agarre.addEventListener('pointermove', moverArrastre);
     agarre.addEventListener('pointerup', soltarArrastre);
     agarre.addEventListener('pointercancel', soltarArrastre);
+
+    // Un temporizador y no requestAnimationFrame: aquí no hace falta ir al
+    // ritmo del repintado, y así el desplazamiento no depende de que el
+    // navegador considere la pestaña digna de animar.
+    arrastre.tic = setInterval(latido, 16);
+    refrescarArrastre();
   }
 
   function moverArrastre(evento) {
     if (!arrastre) return;
+    arrastre.yAhora = evento.clientY;
+    refrescarArrastre();
+  }
 
-    const recorrido = evento.clientY - arrastre.y0;
+  /** Recoloca lo arrastrado y decide dónde caería si se soltara ahora. */
+  function refrescarArrastre() {
+    const desplazado = el.desplazable.scrollTop - arrastre.scroll0;
+    // Se compensa el desplazamiento para que la fila siga pegada al dedo.
+    const recorrido = arrastre.yAhora - arrastre.y0 + desplazado;
+
     arrastre.etiqueta.style.transform = `translateY(${recorrido}px)`;
     if (arrastre.fila) arrastre.fila.style.transform = `translateY(${recorrido}px)`;
 
-    // La fila cuyo centro queda más cerca del dedo es el destino.
-    const donde = evento.clientY;
-    let hasta = 0;
+    let elegido = null;
     let masCerca = Infinity;
 
-    arrastre.orden.forEach((sitio, i) => {
-      const distancia = Math.abs(sitio.centro - donde);
+    for (const hueco of arrastre.huecos) {
+      const distancia = Math.abs(hueco.y - desplazado - arrastre.yAhora);
       if (distancia < masCerca) {
         masCerca = distancia;
-        hasta = i;
+        elegido = hueco;
       }
-    });
+    }
 
-    if (hasta !== arrastre.hasta) {
-      arrastre.hasta = hasta;
-      marcarDestino(hasta);
+    if (elegido !== arrastre.elegido) {
+      arrastre.elegido = elegido;
+      marcarDestino(elegido);
     }
   }
 
-  function marcarDestino(indice) {
-    for (const nodo of el.bloques.querySelectorAll('.destino')) {
-      nodo.classList.remove('destino');
-    }
-    if (indice === arrastre.desde) return;
+  /** Un hueco que deja a alguien donde ya estaba no se señala. */
+  function esSuSitio(hueco) {
+    return (
+      hueco.grupo === arrastre.grupoOriginal &&
+      (hueco.posicion === arrastre.posicionOriginal ||
+        hueco.posicion === arrastre.posicionOriginal + 1)
+    );
+  }
 
-    const sitio = arrastre.orden[indice];
-    sitio?.nodo.classList.add('destino');
-    el.bloques
-      .querySelector(`.pista__fila--participante[data-id="${sitio?.participante.id}"]`)
-      ?.classList.add('destino');
+  function marcarDestino(hueco) {
+    for (const nodo of el.bloques.querySelectorAll('.destino-arriba, .destino-abajo')) {
+      nodo.classList.remove('destino-arriba', 'destino-abajo');
+    }
+    if (!hueco || esSuSitio(hueco)) return;
+
+    const clase = hueco.borde === 'arriba' ? 'destino-arriba' : 'destino-abajo';
+    for (const nodo of el.bloques.querySelectorAll(`[data-id="${hueco.id}"]`)) {
+      nodo.classList.add(clase);
+    }
+  }
+
+  /**
+   * Cerca de un borde, la lista se va moviendo sola mientras se arrastra: sin
+   * esto no se puede sacar a nadie de la parte visible con el dedo ocupado.
+   * Cuanto más se arrima al borde, más deprisa corre.
+   */
+  function latido() {
+    if (!arrastre) return;
+
+    const caja = el.desplazable.getBoundingClientRect();
+    const y = arrastre.yAhora;
+    let paso = 0;
+
+    if (y < caja.top + ORILLA) paso = -(caja.top + ORILLA - y) / 5;
+    else if (y > caja.bottom - ORILLA) paso = (y - (caja.bottom - ORILLA)) / 5;
+    if (!paso) return;
+
+    const antes = el.desplazable.scrollTop;
+    el.desplazable.scrollTop += Math.max(-20, Math.min(20, paso));
+    if (el.desplazable.scrollTop !== antes) refrescarArrastre();
   }
 
   function soltarArrastre() {
     if (!arrastre) return;
 
-    const { desde, hasta, agarre, puntero, id, orden } = arrastre;
+    const { agarre, puntero, id, elegido, grupoOriginal, posicionOriginal, tic } =
+      arrastre;
+    clearInterval(tic);
     agarre.releasePointerCapture?.(puntero);
     agarre.removeEventListener('pointermove', moverArrastre);
     agarre.removeEventListener('pointerup', soltarArrastre);
     agarre.removeEventListener('pointercancel', soltarArrastre);
+
+    const mueve = elegido && !esSuSitio(elegido);
     arrastre = null;
 
-    if (desde !== hasta) {
-      const meta = orden[hasta];
-      // La posición dentro del grupo de destino, contando ya sin el arrastrado.
-      const enEseGrupo = orden.filter(
-        (x) => x.grupo === meta.grupo && x.participante.id !== id
-      );
-      const sitio = enEseGrupo.findIndex(
-        (x) => x.participante.id === meta.participante.id
-      );
+    if (mueve) {
+      // Si sale de más arriba del mismo grupo, al quitarlo todo sube un puesto.
+      const baja =
+        elegido.grupo === grupoOriginal && posicionOriginal < elegido.posicion;
 
       ahora = filtros.moverParticipante(ahora, id, {
-        grupo: meta.grupo,
-        hasta: sitio < 0 ? enEseGrupo.length : sitio + (hasta > desde ? 1 : 0),
+        grupo: elegido.grupo,
+        hasta: elegido.posicion - (baja ? 1 : 0),
       });
     }
 

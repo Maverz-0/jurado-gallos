@@ -540,6 +540,38 @@ button {
   color: var(--texto-secundario);
 }
 
+/* En filtros los cuadros del grupo son sólo orientativos: se quedan en una
+   línea compacta para dejarle el sitio a las filas de votación. */
+.marcadores--mini {
+  gap: var(--e1);
+}
+
+.marcadores--mini .marcador {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--e2);
+  padding: var(--e1) var(--e2);
+  border-width: 1.5px;
+  border-radius: 8px;
+}
+
+.marcadores--mini .marcador__nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--texto-menudo);
+  letter-spacing: 0.2px;
+}
+
+.marcadores--mini .marcador__total {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.marcadores--mini .marcador__replica {
+  font-size: 10px;
+  opacity: 0.75;
+}
+
 /* El nombre de un participante deja sitio al mando cuando se está editando. */
 .pista__etiqueta--participante {
   display: flex;
@@ -598,10 +630,15 @@ button {
   opacity: 0.9;
 }
 
-/* Dónde va a caer: una raya, porque con las cabeceras de grupo en medio
-   apartar filas para hacer hueco quedaría torcido. */
-.destino {
+/* Dónde va a caer: una raya en el hueco exacto, arriba o abajo de la fila,
+   porque con las cabeceras de grupo en medio apartar filas para hacer hueco
+   quedaría torcido. */
+.destino-arriba {
   box-shadow: inset 0 3px 0 -1px var(--azul);
+}
+
+.destino-abajo {
+  box-shadow: inset 0 -3px 0 -1px var(--azul);
 }
 
 /* ── Tabla de clasificación ─────────────────────────────────────────────── */
