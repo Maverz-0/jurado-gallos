@@ -394,6 +394,23 @@ export function deshacer(batalla) {
 }
 
 /**
+ * Los gallos de un tramo en su orden de intervención: primero el que lo abre y
+ * luego los demás, dando la vuelta. Es como se enseñan sus filas, para que el
+ * bloque se lea de arriba abajo en el orden en que van saliendo.
+ *
+ * Vale igual para una batalla en curso y para una guardada: sólo mira cuántos
+ * gallos hay y qué sitio ocupa el tramo.
+ */
+export function batallerosDelTramo(batalla, idTramo) {
+  const cuantos = batalla.batalleros.length;
+  const iTramo = batalla.tramos.findIndex((tramo) => tramo.id === idTramo);
+  if (iTramo < 0 || cuantos === 0) return batalla.batalleros;
+
+  const abre = quienAbre(batalla, iTramo);
+  return batalla.batalleros.map((_, i) => batalla.batalleros[(abre + i) % cuantos]);
+}
+
+/**
  * Quién abre un tramo en el que todavía no ha puntuado nadie, o null si ya
  * está empezado: entonces no hay nada que decidir, manda lo que ya hay.
  */

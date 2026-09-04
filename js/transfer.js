@@ -8,7 +8,11 @@
 
 import { listarBatallas, importarBatallas } from './storage.js';
 import { alDia } from './compat.js';
-import { comoSeEscribe, comoSeLlamaElTramo } from './scoring.js';
+import {
+  comoSeEscribe,
+  comoSeLlamaElTramo,
+  batallerosDelTramo,
+} from './scoring.js';
 
 /** Fecha de la última copia de seguridad, en ISO. */
 const CLAVE_ULTIMA_COPIA = 'jurado-gallos:ultima-copia';
@@ -217,7 +221,7 @@ function comoTexto(batallas, ahora) {
     // Un bloque por tramo, para que la réplica se lea aparte de lo anterior.
     const porTramos = batalla.tramos.flatMap((tramo) => [
       `   ${comoSeLlamaElTramo(tramo)}`,
-      ...batalla.batalleros.map((batallero) => {
+      ...batallerosDelTramo(batalla, tramo.id).map((batallero) => {
         const notas = notasDe(batalla, tramo.id, batallero.id);
         const suma = notas.reduce((total, nota) => total + nota, 0);
         const escritas = notas.map(comoSeEscribe);

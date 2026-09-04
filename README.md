@@ -153,6 +153,11 @@ siguiente lo abre el segundo, y así dando la vuelta. Si un 8×8 lo abrió uno, 
 4×4 que venga después lo abre el otro. En los tramos que quedan por delante se
 marca flojito quién los abrirá.
 
+**Las filas de cada tramo van en su orden de intervención**, no en el de la
+lista: el que abre arriba y los demás detrás, dando la vuelta. Así el bloque se
+lee de arriba abajo según van saliendo. Los marcadores de arriba no se mueven:
+llevan el total de la batalla, que no va por tramos.
+
 Eso lo aplican los tres caminos por los que se llega a un tramo: cuando se llena
 el anterior, cuando se añade uno con la batalla empezada, y cuando se toca un
 hueco suyo. Este último hace falta porque un tramo sin número fijo no se llena

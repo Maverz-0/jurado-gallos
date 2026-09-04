@@ -59,7 +59,12 @@ function pie(pincel, x, y) {
   pincel.fillText(FIRMA, x + ancho + 10, y);
 }
 
-import { comoSeEscribe, comoSeLlamaElTramo, MODALIDADES } from './scoring.js';
+import {
+  comoSeEscribe,
+  comoSeLlamaElTramo,
+  batallerosDelTramo,
+  MODALIDADES,
+} from './scoring.js';
 
 function votosDe(acta, idTramo, idBatallero) {
   return acta.puntuaciones
@@ -201,7 +206,7 @@ export function dibujarActa(acta) {
     pincel.textAlign = 'left';
     y += ALTO_ORDINALES;
 
-    for (const batallero of acta.batalleros) {
+    for (const batallero of batallerosDelTramo(acta, tramo.id)) {
       pincel.fillStyle = TINTA;
       pincel.font = `400 22px ${FUENTE}`;
       recortarTexto(pincel, batallero.nombre, MARGEN, y + LADO_VOTO / 2, ANCHO_NOMBRE - 16);
@@ -559,7 +564,7 @@ export function comoTexto(acta) {
 
   for (const tramo of acta.tramos) {
     lineas.push('', comoSeLlamaElTramo(tramo).toUpperCase());
-    for (const batallero of acta.batalleros) {
+    for (const batallero of batallerosDelTramo(acta, tramo.id)) {
       const votos = votosDe(acta, tramo.id, batallero.id).map(comoSeEscribe);
       const suma = votosDe(acta, tramo.id, batallero.id).reduce(
         (total, voto) => total + voto,

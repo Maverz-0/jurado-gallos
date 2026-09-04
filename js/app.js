@@ -640,7 +640,9 @@ function pintarBloques() {
     ajustarHijos(etiquetas, cuantos + 1, () => clonar(el.tplEtiqueta));
     ajustarHijos(filas, cuantos + 1, () => clonar(el.tplFilaVotos));
 
-    batalla.batalleros.forEach((batallero, b) => {
+    // Las filas van en el orden en que intervienen, no en el de la lista: el
+    // que abre el tramo arriba y los demás detrás, dando la vuelta.
+    scoring.batallerosDelTramo(batalla, tramo.id).forEach((batallero, b) => {
       const nombre = comoSeLlama(batalla.batalleros, batallero.id);
       const activa =
         batalla.cursor.tramo === tramo.id &&
