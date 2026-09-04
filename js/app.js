@@ -49,13 +49,15 @@ const REPARTO = [
   { hasta: 10, columnas: 5, cifra: 'clamp(19px, 5vw, 26px)' },
 ];
 
-/** Lo que hace cada modalidad, dicho para quien la elige. */
+/**
+ * Lo que hace cada modalidad, dicho para quien la elige. Habla sólo del orden
+ * de los turnos: cuántas intervenciones hay se elige aparte, justo debajo.
+ */
 const EXPLICACIONES = {
-  dinamica:
-    'Las intervenciones van saliendo según metes votos, sin número fijo.',
-  nxn: 'Número fijo de intervenciones, alternando entre los gallos.',
+  '4x4': 'Se alterna de uno en uno: cada gallo interviene y pasa el turno.',
+  '8x8': 'Se alterna de dos en dos: a cada gallo se le puntúan dos seguidas.',
   minuto:
-    'Número fijo de intervenciones. Se puntúa a un gallo entero antes de pasar al siguiente.',
+    'Se puntúa a un gallo entero antes de pasar al siguiente. Sin número fijo de intervenciones, pasas tú tocando al que vaya después.',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -126,7 +128,6 @@ const el = {
   hojaTitulo: $('hoja-titulo'),
   hojaModalidad: $('hoja-modalidad'),
   hojaNota: $('hoja-nota'),
-  hojaCuantas: $('hoja-cuantas'),
   hojaNumero: $('hoja-numero'),
   hojaMenos: $('hoja-menos'),
   hojaMas: $('hoja-mas'),
@@ -179,17 +180,6 @@ function todosLosNombres(batalleros) {
   return batalleros
     .map((batallero) => comoSeLlama(batalleros, batallero.id))
     .join(' · ');
-}
-
-/** «4×4» para un N×N, y el nombre de la modalidad para el resto. */
-function comoSeLlamaElTramo(tramo) {
-  const base =
-    tramo.modalidad === 'nxn'
-      ? `${tramo.intervenciones}×${tramo.intervenciones}`
-      : scoring.MODALIDADES[tramo.modalidad].etiqueta +
-        (tramo.intervenciones ? ` · ${tramo.intervenciones}` : '');
-
-  return tramo.replica ? `Réplica · ${base}` : base;
 }
 
 // ── Navegación ─────────────────────────────────────────────────────────────
@@ -380,33 +370,41 @@ function filaDeTramo(tramo, i) {
         scoring.crearTramo({
           id: tramo.id,
           modalidad: cual,
-          intervenciones: tramo.intervenciones ?? scoring.INTERVENCIONES_POR_DEFECTO,
+          intervenciones: tramo.intervenciones,
         })
       );
       pintarPlantillaTramos();
     });
   }
 
-  const cuantas = caja.querySelector('.tramo__cuantas');
-  cuantas.hidden = tramo.intervenciones == null;
-
-  if (tramo.intervenciones != null) {
-    const cifra = caja.querySelector('.tramo__numero');
-    poner(cifra, tramo.intervenciones);
-
-    const mover = (paso) => {
-      tramo.intervenciones = scoring.acotar(tramo.intervenciones + paso);
+  pintarCuantas(
+    caja.querySelector('.tramo__numero'),
+    caja.querySelector('.tramo__menos'),
+    caja.querySelector('.tramo__mas'),
+    tramo.intervenciones,
+    (cuantas) => {
+      tramo.intervenciones = cuantas;
       pintarPlantillaTramos();
-    };
-    caja.querySelector('.tramo__menos').addEventListener('click', () => mover(-1));
-    caja.querySelector('.tramo__mas').addEventListener('click', () => mover(1));
-    caja.querySelector('.tramo__menos').disabled =
-      tramo.intervenciones <= scoring.MIN_INTERVENCIONES;
-    caja.querySelector('.tramo__mas').disabled =
-      tramo.intervenciones >= scoring.MAX_INTERVENCIONES;
-  }
+    }
+  );
 
   return caja;
+}
+
+/**
+ * El contador de intervenciones, que sale igual en la preparación y en la hoja
+ * de añadir modalidad. Por debajo del 1 está el indefinido, así que el «−» no
+ * se apaga hasta llegar ahí.
+ */
+function pintarCuantas(cifra, menos, mas, intervenciones, alCambiar) {
+  poner(cifra, intervenciones ?? scoring.INDEFINIDO);
+  cifra.classList.toggle('contador__cifra--palabra', intervenciones == null);
+
+  menos.disabled = intervenciones == null;
+  mas.disabled = intervenciones >= scoring.MAX_INTERVENCIONES;
+
+  menos.onclick = () => alCambiar(scoring.moverIntervenciones(intervenciones, -1));
+  mas.onclick = () => alCambiar(scoring.moverIntervenciones(intervenciones, 1));
 }
 
 // ── Escala de puntuación ───────────────────────────────────────────────────
@@ -614,11 +612,19 @@ function pintarBloques() {
     const ancho = scoring.anchoDeTramo(batalla, tramo);
 
     bloque.classList.toggle('bloque--replica', tramo.replica);
-    poner(bloque.querySelector('.bloque__titulo'), comoSeLlamaElTramo(tramo));
+    poner(bloque.querySelector('.bloque__titulo'), scoring.comoSeLlamaElTramo(tramo));
+
+    // En un 8×8 las intervenciones van de dos en dos: se separan en parejas
+    // para poder contarlas de un vistazo, ordinales incluidos.
+    const paso = scoring.MODALIDADES[tramo.modalidad].paso;
+    const abrePareja = (i) => paso > 1 && i > 0 && i % paso === 0;
 
     const ordinales = bloque.querySelector('.pista__ordinales');
     ajustarHijos(ordinales, ancho, () => clonar(el.tplOrdinal));
-    for (let i = 0; i < ancho; i += 1) poner(ordinales.children[i], `${i + 1}ª`);
+    for (let i = 0; i < ancho; i += 1) {
+      poner(ordinales.children[i], `${i + 1}ª`);
+      ordinales.children[i].classList.toggle('ordinal--pareja', abrePareja(i));
+    }
 
     // El primer hijo de cada columna es el hueco y la fila de ordinales.
     const etiquetas = bloque.querySelector('.pista__etiquetas');
@@ -646,6 +652,8 @@ function pintarBloques() {
         const cuadro = fila.children[i];
         const voto = votos[i];
 
+        cuadro.classList.toggle('voto--pareja', abrePareja(i));
+
         const entero = cuadro.querySelector('.voto__entero');
         const medio = cuadro.querySelector('.voto__medio');
 
@@ -659,7 +667,7 @@ function pintarBloques() {
           cuadro.classList.toggle('voto--marcado', batalla.marcada === voto.indice);
           cuadro.setAttribute(
             'aria-label',
-            `${comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: ${comoSeEscribe(voto.valor)}`
+            `${scoring.comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: ${comoSeEscribe(voto.valor)}`
           );
         } else {
           poner(entero, '');
@@ -672,7 +680,7 @@ function pintarBloques() {
           cuadro.classList.remove('voto--marcado');
           cuadro.setAttribute(
             'aria-label',
-            `${comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: sin puntuar`
+            `${scoring.comoSeLlamaElTramo(tramo)}, intervención ${i + 1} de ${nombre}: sin puntuar`
           );
         }
       }
@@ -755,7 +763,7 @@ function queTocaAhora(sePuedeAnotar) {
 
   const quien = comoSeLlama(batalla.batalleros, batalla.cursor.batallero);
   const tramo = scoring.tramoDe(batalla, batalla.cursor.tramo);
-  const cual = tramo && batalla.tramos.length > 1 ? ` · ${comoSeLlamaElTramo(tramo)}` : '';
+  const cual = tramo && batalla.tramos.length > 1 ? ` · ${scoring.comoSeLlamaElTramo(tramo)}` : '';
 
   return `Puntuando a ${quien}${cual}`;
 }
@@ -775,7 +783,7 @@ function pintarFinal() {
       const bloque = clonar(el.tplFinal);
       const porTramo = batalla.tramos.map(
         (tramo) =>
-          `${comoSeLlamaElTramo(tramo)}: ${comoSeEscribe(scoring.totalDeTramo(batalla, tramo.id, batallero.id))}`
+          `${scoring.comoSeLlamaElTramo(tramo)}: ${comoSeEscribe(scoring.totalDeTramo(batalla, tramo.id, batallero.id))}`
       );
 
       bloque.querySelector('.resultado__nombre').textContent = comoSeLlama(
@@ -855,24 +863,16 @@ function pedirModalidad({ titulo, aceptar }) {
         );
       }
       el.hojaNota.textContent = EXPLICACIONES[modalidad];
-      el.hojaCuantas.hidden = !scoring.MODALIDADES[modalidad].fija;
-      el.hojaNumero.textContent = cuantas;
-      el.hojaMenos.disabled = cuantas <= scoring.MIN_INTERVENCIONES;
-      el.hojaMas.disabled = cuantas >= scoring.MAX_INTERVENCIONES;
+      pintarCuantas(el.hojaNumero, el.hojaMenos, el.hojaMas, cuantas, (nuevas) => {
+        cuantas = nuevas;
+        pintar();
+      });
     };
 
     const alElegir = (evento) => {
       const opcion = evento.target.closest('[data-modalidad]');
       if (!opcion) return;
       modalidad = opcion.dataset.modalidad;
-      pintar();
-    };
-    const alMenos = () => {
-      cuantas = scoring.acotar(cuantas - 1);
-      pintar();
-    };
-    const alMas = () => {
-      cuantas = scoring.acotar(cuantas + 1);
       pintar();
     };
     const alTeclear = (evento) => {
@@ -883,8 +883,8 @@ function pedirModalidad({ titulo, aceptar }) {
       el.veloModalidad.hidden = true;
       el.pila.inert = false;
       el.hojaModalidad.removeEventListener('click', alElegir);
-      el.hojaMenos.removeEventListener('click', alMenos);
-      el.hojaMas.removeEventListener('click', alMas);
+      el.hojaMenos.onclick = null;
+      el.hojaMas.onclick = null;
       el.hojaAceptar.removeEventListener('click', alAceptar);
       el.hojaCancelar.removeEventListener('click', alCancelar);
       document.removeEventListener('keydown', alTeclear);
@@ -896,8 +896,6 @@ function pedirModalidad({ titulo, aceptar }) {
     const alCancelar = () => cerrar(null);
 
     el.hojaModalidad.addEventListener('click', alElegir);
-    el.hojaMenos.addEventListener('click', alMenos);
-    el.hojaMas.addEventListener('click', alMas);
     el.hojaAceptar.addEventListener('click', alAceptar);
     el.hojaCancelar.addEventListener('click', alCancelar);
     document.addEventListener('keydown', alTeclear);

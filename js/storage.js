@@ -20,7 +20,7 @@
 import { alDia } from './compat.js';
 
 const DB_NOMBRE = 'jurado-gallos';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const ALMACEN = 'batallas';
 const BORRADOR = 'borrador';
 
@@ -57,9 +57,10 @@ function abrirDB() {
 
       // v3: de dos batalleros sueltos a una lista.
       // v4: de una tirada de puntuaciones a una secuencia de tramos.
-      // compat.js sabe traducir desde cualquiera de los dos, así que basta
+      // v5: la dinámica y el N×N pasan a ser 4×4 sin y con número fijo.
+      // compat.js sabe traducir desde cualquiera de las tres, así que basta
       // con pasar por aquí una sola vez venga de la versión que venga.
-      if (evento.oldVersion > 0 && evento.oldVersion < 4) {
+      if (evento.oldVersion > 0 && evento.oldVersion < 5) {
         ponerAlDia(transaccion);
       }
     };

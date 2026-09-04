@@ -7,7 +7,7 @@
  */
 
 import { listarBatallas, obtenerBatalla, borrarBatalla } from './storage.js';
-import { comoSeEscribe } from './scoring.js';
+import { comoSeEscribe, comoSeLlamaElTramo } from './scoring.js';
 
 const EN_LISTA = new Intl.DateTimeFormat('es-ES', {
   day: 'numeric',
@@ -214,18 +214,6 @@ export function crearHistorial({ empujar, sacar, confirmar, abrirFiltros }) {
   el.btnBorrar.addEventListener('click', borrar);
 
   return { abrir, laQueEstaAbierta: () => abierta };
-}
-
-/** «4×4» para un N×N, y el nombre de la modalidad para el resto. */
-function comoSeLlamaElTramo(tramo) {
-  const base =
-    tramo.modalidad === 'nxn'
-      ? `${tramo.intervenciones}×${tramo.intervenciones}`
-      : tramo.modalidad === 'minuto'
-        ? `Minuto · ${tramo.intervenciones}`
-        : 'Dinámica';
-
-  return tramo.replica ? `Réplica · ${base}` : base;
 }
 
 /** Las fechas se guardan en ISO; aquí se muestran como las lee una persona. */

@@ -13,6 +13,10 @@
  *      { puntuaciones: [{ batallero, … }] }
  *        →  { tramos: [{ id, modalidad, … }], puntuaciones: [{ tramo, … }] }
  *
+ *   3. La dinámica dejó de ser una modalidad y pasó a ser el número de
+ *      intervenciones sin fijar, y el N×N se partió en 4×4 y 8×8.
+ *      { modalidad: 'dinamica' | 'nxn' }  →  { modalidad: '4x4' }
+ *
  * Los identificadores se conservan siempre, así que las puntuaciones antiguas
  * siguen apuntando a quien apuntaban.
  */
@@ -22,8 +26,18 @@ const VIEJOS = [
   { id: 'B', campoNombre: 'batalleroB', campoTotal: 'totalB' },
 ];
 
-/** Lo que era una batalla entera pasa a ser su único tramo, en dinámica. */
+/** Lo que era una batalla entera pasa a ser su único tramo, sin número fijo. */
 const TRAMO_UNICO = 't1';
+
+/**
+ * Las dos modalidades que ya no existen, y en qué se convierten. Un «dinámica»
+ * era un 4×4 sin número de intervenciones fijado, y un «nxn» era un 4×4 con el
+ * suyo: en las dos se alternaba de uno en uno, así que nada cambia de sitio.
+ */
+const MODALIDADES_VIEJAS = {
+  dinamica: { modalidad: '4x4', intervenciones: null },
+  nxn: { modalidad: '4x4' },
+};
 
 /** Deja un registro en el esquema de hoy, venga de donde venga. */
 export function alDia(registro) {
@@ -31,9 +45,10 @@ export function alDia(registro) {
   if (registro?.tipo === 'filtros') return registro;
 
   const puesto = aTramos(aVariosBatalleros(registro) ?? registro) ?? registro;
+  const nombrado = aModalidadesDeHoy(puesto) ?? puesto;
 
   // Todo lo guardado antes de que hubiera filtros era una batalla.
-  return puesto?.tipo ? puesto : { ...puesto, tipo: 'batalla' };
+  return nombrado?.tipo ? nombrado : { ...nombrado, tipo: 'batalla' };
 }
 
 /**
@@ -73,7 +88,7 @@ export function aVariosBatalleros(registro) {
   };
 }
 
-/** Paso 2. Mete todo lo que había en un único tramo dinámico. */
+/** Paso 2. Mete todo lo que había en un único tramo sin número fijo. */
 export function aTramos(registro) {
   if (!registro || typeof registro !== 'object') return null;
   if (Array.isArray(registro.tramos)) return null;
@@ -89,7 +104,7 @@ export function aTramos(registro) {
     tramos: [
       {
         id: TRAMO_UNICO,
-        modalidad: 'dinamica',
+        modalidad: '4x4',
         intervenciones: null,
         replica: false,
       },
@@ -107,6 +122,27 @@ export function aTramos(registro) {
   }
 
   return convertido;
+}
+
+/**
+ * Paso 3. Renombra las modalidades que ya no existen. Devuelve null si no hay
+ * ninguna que traducir, para no rehacer el registro por gusto.
+ */
+export function aModalidadesDeHoy(registro) {
+  if (!Array.isArray(registro?.tramos)) return null;
+
+  const hayQueTocar = registro.tramos.some(
+    (tramo) => MODALIDADES_VIEJAS[tramo?.modalidad]
+  );
+  if (!hayQueTocar) return null;
+
+  return {
+    ...registro,
+    tramos: registro.tramos.map((tramo) => {
+      const nueva = MODALIDADES_VIEJAS[tramo?.modalidad];
+      return nueva ? { ...tramo, ...nueva } : tramo;
+    }),
+  };
 }
 
 function sumaDe(puntuaciones, id) {

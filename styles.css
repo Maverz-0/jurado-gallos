@@ -1082,6 +1082,13 @@ button {
   font-weight: 600;
 }
 
+/* «Indefinido» no es una cifra: no cabe en el hueco de una y no es tabular. */
+.contador__cifra--palabra {
+  padding: 0 var(--e2);
+  font-size: var(--texto-nota);
+  font-variant-numeric: normal;
+}
+
 /* Interruptor del sistema. */
 .interruptor {
   position: relative;
@@ -1420,6 +1427,13 @@ button {
 
 .pista__fila--activa {
   border-radius: 0 8px 8px 0;
+}
+
+/* En un 8×8 se puntúa de dos en dos: un hueco algo mayor cada dos casillas
+   deja ver las parejas sin tener que ir contando. */
+.voto--pareja,
+.ordinal--pareja {
+  margin-left: var(--e3);
 }
 
 .voto {

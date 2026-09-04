@@ -103,14 +103,27 @@ puesto lo marca para sustituirlo con la siguiente tecla.
 Una batalla es una **secuencia de tramos**, cada uno con su modalidad. Puede
 llevar un 8×8 y después un 4×4, y se pueden añadir tramos ya empezada.
 
-| Modalidad | Intervenciones | Orden |
-|---|---|---|
-| Dinámica | van saliendo según se puntúa | alterna entre gallos |
-| N×N | fijas, se eligen (un 4×4 son 4) | alterna entre gallos |
-| Minuto | fijas, se eligen | agota un gallo antes de pasar al siguiente |
+La modalidad dice **en qué orden se pasa de un gallo a otro**, y nada más:
 
-Cuando un tramo se llena, el cursor salta solo al siguiente. Si no queda hueco
-en ninguno, el teclado se apaga hasta que se añada otro tramo o se termine.
+| Modalidad | Orden |
+|---|---|
+| 4×4 | alterna de uno en uno |
+| 8×8 | alterna de dos en dos: dos seguidas a cada gallo |
+| Minuto | agota un gallo antes de pasar al siguiente |
+
+En un 8×8 los cuadritos se separan en parejas, para poder contarlas de un
+vistazo sin ir siguiendo los ordinales.
+
+**Cuántas intervenciones** hay se elige aparte, y por debajo del 1 está
+**Indefinido**, que es lo que trae puesto: las intervenciones van saliendo
+según se puntúa y el tramo no se llena nunca. Con un número fijo, en cambio,
+cada gallo tiene su cupo, y cuando el tramo se llena el cursor salta solo al
+siguiente. Si no queda hueco en ninguno, el teclado se apaga hasta que se añada
+otro tramo o se termine.
+
+Un **Minuto indefinido** no cede el turno solo, porque no hay cupo que agotar:
+se pasa al siguiente gallo tocándolo, que es lo que uno hace cuando se acaba el
+minuto.
 
 La **réplica** es un tramo más, marcado aparte: nunca se suma al marcador de la
 batalla; se muestra debajo, en su propia línea.
@@ -193,11 +206,13 @@ de las dos, la imagen acabaría contando otra cosa.
 
 Se entregan por `navigator.share`; donde no exista, se descargan.
 
-### El esquema de datos ha cambiado dos veces
+### El esquema de datos ha cambiado tres veces
 
 Primero, de dos batalleros sueltos (`batalleroA`, `totalA`…) a una lista.
-Después, de una tirada de puntuaciones a una secuencia de tramos. Las dos
-traducciones viven en `compat.js` y se aplican en dos sitios: al subir de
+Después, de una tirada de puntuaciones a una secuencia de tramos. Y por último,
+la dinámica y el N×N pasaron a ser un 4×4 sin y con número de intervenciones:
+en las dos se alternaba de uno en uno, así que la traducción no mueve ni una
+nota. Las tres viven en `compat.js` y se aplican en dos sitios: al subir de
 versión la base de datos, y al importar un `.json` exportado antes del cambio.
 Los identificadores se conservan siempre, así que las puntuaciones antiguas
 siguen apuntando a quien apuntaban.

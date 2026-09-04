@@ -5,9 +5,10 @@
  * Todas las funciones reciben un estado y devuelven uno nuevo, sin mutar el que
  * les llega, de modo que se puede probar llamándolas directamente.
  *
- * Una batalla es una secuencia de TRAMOS. Cada tramo tiene su modalidad y, si
- * la modalidad la fija, su número de intervenciones. Una misma batalla puede
- * llevar un 8×8, luego un 4×4 y luego una réplica.
+ * Una batalla es una secuencia de TRAMOS. Cada tramo tiene su modalidad, que
+ * dice en qué orden se pasa de un gallo a otro, y su número de intervenciones,
+ * que puede quedar sin fijar. Una misma batalla puede llevar un 8×8, luego un
+ * 4×4 y luego una réplica.
  *
  *   {
  *     batalleros:   [{ id, nombre }],           // entre 2 y 10, en orden
@@ -35,20 +36,29 @@ export const MEDIO = 0.5;
 
 export const MIN_INTERVENCIONES = 1;
 export const MAX_INTERVENCIONES = 20;
-export const INTERVENCIONES_POR_DEFECTO = 4;
+
+/** Un tramo nace sin número: las intervenciones que salgan. */
+export const INTERVENCIONES_POR_DEFECTO = null;
+
+/** Como se lee un tramo sin número fijo de intervenciones. */
+export const INDEFINIDO = 'Indefinido';
 
 /**
- * `fija`     — el número de intervenciones se decide de antemano.
- * `porGallo` — se recorren todas las intervenciones de un gallo antes de pasar
- *              al siguiente, en vez de ir alternando.
+ * La modalidad dice sólo en qué orden se va pasando de un gallo a otro. Cuántas
+ * intervenciones hay es cosa aparte, y puede quedar sin fijar.
+ *
+ * `paso`     — cuántas seguidas se le puntúan a un gallo antes de ceder el
+ *              turno. Es lo único que separa un 4×4 de un 8×8.
+ * `porGallo` — se le puntúan todas las suyas antes de pasar al siguiente, en
+ *              vez de ir alternando.
  */
 export const MODALIDADES = {
-  dinamica: { etiqueta: 'Dinámica', fija: false, porGallo: false },
-  nxn: { etiqueta: 'N×N', fija: true, porGallo: false },
-  minuto: { etiqueta: 'Minuto', fija: true, porGallo: true },
+  '4x4': { etiqueta: '4×4', paso: 1, porGallo: false },
+  '8x8': { etiqueta: '8×8', paso: 2, porGallo: false },
+  minuto: { etiqueta: 'Minuto', paso: 1, porGallo: true },
 };
 
-export const MODALIDAD_POR_DEFECTO = 'dinamica';
+export const MODALIDAD_POR_DEFECTO = '4x4';
 
 export function crearTramo({
   id,
@@ -61,7 +71,7 @@ export function crearTramo({
   return {
     id,
     modalidad: cual,
-    intervenciones: MODALIDADES[cual].fija ? acotar(intervenciones) : null,
+    intervenciones: intervenciones == null ? null : acotar(intervenciones),
     replica: !!replica,
   };
 }
@@ -71,8 +81,31 @@ export function acotar(intervenciones) {
     intervenciones,
     MIN_INTERVENCIONES,
     MAX_INTERVENCIONES,
-    INTERVENCIONES_POR_DEFECTO
+    MIN_INTERVENCIONES
   );
+}
+
+/**
+ * El contador de intervenciones va del indefinido al máximo, y el indefinido
+ * queda justo por debajo del 1: es un valor más de la cuenta y no una casilla
+ * aparte, así que se llega a él bajando desde uno.
+ */
+export function moverIntervenciones(intervenciones, paso) {
+  if (intervenciones == null) return paso > 0 ? MIN_INTERVENCIONES : null;
+
+  const siguiente = intervenciones + paso;
+  return siguiente < MIN_INTERVENCIONES ? null : acotar(siguiente);
+}
+
+/** «4×4 · 6» cuando el número está fijado, y «4×4» a secas cuando no. */
+export function comoSeLlamaElTramo(tramo) {
+  const modalidad = MODALIDADES[tramo.modalidad] ?? MODALIDADES[MODALIDAD_POR_DEFECTO];
+  const base =
+    tramo.intervenciones == null
+      ? modalidad.etiqueta
+      : `${modalidad.etiqueta} · ${tramo.intervenciones}`;
+
+  return tramo.replica ? `Réplica · ${base}` : base;
 }
 
 /** Un cero es falsy, así que el valor por defecto se decide por NaN, no por `||`. */
@@ -186,7 +219,7 @@ function sumarTramos(batalla, idBatallero, cuenta) {
 }
 
 /**
- * Cuántas columnas tiene un tramo: las que fije su modalidad o, en dinámica,
+ * Cuántas columnas tiene un tramo: las que tenga fijadas o, si no las tiene,
  * las que se lleven metidas.
  */
 export function anchoDeTramo(batalla, tramo) {
@@ -268,13 +301,19 @@ function avanzar(batalla, cursor) {
   const tramo = tramoDe(batalla, cursor.tramo);
   if (!tramo) return cursor;
 
-  // En «minuto» un gallo agota sus intervenciones antes de ceder el turno.
-  if (
-    MODALIDADES[tramo.modalidad].porGallo &&
-    tieneCupo(batalla, tramo, cursor.batallero)
-  ) {
-    return cursor;
+  // Sin hueco para otra suya, el turno se va de todas formas.
+  if (!tieneCupo(batalla, tramo, cursor.batallero)) {
+    return siguientePosicion(batalla, cursor) ?? cursor;
   }
+
+  const { porGallo, paso } = MODALIDADES[tramo.modalidad];
+
+  // En «minuto» un gallo agota sus intervenciones antes de ceder el turno.
+  if (porGallo) return cursor;
+
+  // En un 8×8 van de dos en dos: el turno sólo pasa al cerrar la pareja. Se
+  // sabe contando las que lleva, así que no hay que recordar nada aparte.
+  if (cuantasNotas(batalla, tramo.id, cursor.batallero) % paso !== 0) return cursor;
 
   return siguientePosicion(batalla, cursor) ?? cursor;
 }

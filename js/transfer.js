@@ -8,7 +8,7 @@
 
 import { listarBatallas, importarBatallas } from './storage.js';
 import { alDia } from './compat.js';
-import { comoSeEscribe } from './scoring.js';
+import { comoSeEscribe, comoSeLlamaElTramo } from './scoring.js';
 
 /** Fecha de la última copia de seguridad, en ISO. */
 const CLAVE_ULTIMA_COPIA = 'jurado-gallos:ultima-copia';
@@ -245,17 +245,6 @@ function comoTexto(batallas, ahora) {
   });
 
   return [cabecera, ...cuerpo].join(`\n\n${raya}\n\n`) + '\n';
-}
-
-function comoSeLlamaElTramo(tramo) {
-  const base =
-    tramo.modalidad === 'nxn'
-      ? `${tramo.intervenciones}×${tramo.intervenciones}`
-      : tramo.modalidad === 'minuto'
-        ? `Minuto · ${tramo.intervenciones}`
-        : 'Dinámica';
-
-  return tramo.replica ? `Réplica · ${base}` : base;
 }
 
 function notasDe(batalla, idTramo, idBatallero) {

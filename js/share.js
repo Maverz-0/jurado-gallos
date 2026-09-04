@@ -59,18 +59,7 @@ function pie(pincel, x, y) {
   pincel.fillText(FIRMA, x + ancho + 10, y);
 }
 
-import { comoSeEscribe } from './scoring.js';
-
-export function comoSeLlamaElTramo(tramo) {
-  const base =
-    tramo.modalidad === 'nxn'
-      ? `${tramo.intervenciones}×${tramo.intervenciones}`
-      : tramo.modalidad === 'minuto'
-        ? `Minuto · ${tramo.intervenciones}`
-        : 'Dinámica';
-
-  return tramo.replica ? `Réplica · ${base}` : base;
-}
+import { comoSeEscribe, comoSeLlamaElTramo, MODALIDADES } from './scoring.js';
 
 function votosDe(acta, idTramo, idBatallero) {
   return acta.puntuaciones
@@ -89,17 +78,42 @@ function anchoDeTramo(acta, tramo) {
   );
 }
 
+/** El hueco de más que abre cada pareja de un 8×8, como en la pantalla. */
+const HUECO_PAREJA = 14;
+
+/** Cuánto se corre la columna `i` por las parejas que le quedan detrás. */
+function correPorParejas(tramo, i) {
+  const paso = MODALIDADES[tramo.modalidad]?.paso ?? 1;
+  return paso > 1 ? Math.floor(i / paso) * HUECO_PAREJA : 0;
+}
+
+/** La x de una columna dentro de su tramo. */
+function xDeColumna(tramo, i) {
+  return (
+    MARGEN + ANCHO_NOMBRE + i * (LADO_VOTO + HUECO_VOTO) + correPorParejas(tramo, i)
+  );
+}
+
+/** Lo que ocupan de ancho los cuadritos de un tramo, huecos incluidos. */
+function anchoEnPixeles(acta, tramo) {
+  const columnas = anchoDeTramo(acta, tramo);
+  if (columnas === 0) return 0;
+  return (
+    columnas * (LADO_VOTO + HUECO_VOTO) + correPorParejas(tramo, columnas - 1)
+  );
+}
+
 // ── Imagen ─────────────────────────────────────────────────────────────────
 
 export function dibujarActa(acta) {
-  const columnas = acta.tramos.reduce(
-    (maximo, tramo) => Math.max(maximo, anchoDeTramo(acta, tramo)),
+  const cuadritos = acta.tramos.reduce(
+    (maximo, tramo) => Math.max(maximo, anchoEnPixeles(acta, tramo)),
     0
   );
 
   const ancho = Math.max(
     ANCHO_MINIMO,
-    MARGEN * 2 + ANCHO_NOMBRE + columnas * (LADO_VOTO + HUECO_VOTO)
+    MARGEN * 2 + ANCHO_NOMBRE + cuadritos
   );
 
   const altoCabecera = 190;
@@ -182,8 +196,7 @@ export function dibujarActa(acta) {
     pincel.font = `600 15px ${FUENTE}`;
     pincel.textAlign = 'center';
     for (let i = 0; i < columnasTramo; i += 1) {
-      const x = MARGEN + ANCHO_NOMBRE + i * (LADO_VOTO + HUECO_VOTO);
-      pincel.fillText(`${i + 1}ª`, x + LADO_VOTO / 2, y);
+      pincel.fillText(`${i + 1}ª`, xDeColumna(tramo, i) + LADO_VOTO / 2, y);
     }
     pincel.textAlign = 'left';
     y += ALTO_ORDINALES;
@@ -194,8 +207,7 @@ export function dibujarActa(acta) {
       recortarTexto(pincel, batallero.nombre, MARGEN, y + LADO_VOTO / 2, ANCHO_NOMBRE - 16);
 
       votosDe(acta, tramo.id, batallero.id).forEach((valor, i) => {
-        const x = MARGEN + ANCHO_NOMBRE + i * (LADO_VOTO + HUECO_VOTO);
-        cuadrito(pincel, comoSeEscribe(valor), x, y, LADO_VOTO);
+        cuadrito(pincel, comoSeEscribe(valor), xDeColumna(tramo, i), y, LADO_VOTO);
       });
 
       y += ALTO_FILA;
