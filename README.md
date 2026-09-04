@@ -47,6 +47,11 @@ Dos cosas que hay que respetar para no romper la versión publicada:
 - **Subir la versión de la caché en `sw.js`** al tocar cualquier recurso. Si no,
   quien ya tenga la versión antigua la seguirá viendo desde su caché.
 
+El precacheo pide los recursos con `cache: 'reload'`, que salta la caché del
+navegador. Pages los sirve con `max-age=600`, así que sin eso la instalación se
+llevaba lo que hubiera guardado el navegador y una versión nueva podía acabar
+con archivos de la anterior dentro: decía ser nueva y corría código viejo.
+
 El archivo `.nojekyll` de la raíz evita que Pages procese el sitio con Jekyll.
 
 ### Cómo llega una versión nueva

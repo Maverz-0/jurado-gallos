@@ -6,7 +6,7 @@
  * desde la caché y no verán el cambio nunca.
  */
 
-const CACHE = 'jurado-gallos-v17';
+const CACHE = 'jurado-gallos-v18';
 
 /** Todo lo que hace falta para arrancar. Rutas relativas: esto vive en un
     subdirectorio de github.io, donde una ruta absoluta se saldría del sitio. */
@@ -34,7 +34,18 @@ const RECURSOS = [
 
 self.addEventListener('install', (evento) => {
   evento.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(RECURSOS))
+    caches.open(CACHE).then((cache) =>
+      /**
+       * `reload` salta la caché del navegador y va a la red de verdad.
+       *
+       * Sin esto la instalación se llevaba lo que hubiera en la caché HTTP, y
+       * GitHub Pages sirve los recursos con diez minutos de validez: el service
+       * worker nuevo acababa guardando dentro los archivos de la versión
+       * anterior. Sale una versión que dice ser nueva y corre código viejo, que
+       * es la peor forma posible de «actualizar».
+       */
+      cache.addAll(RECURSOS.map((ruta) => new Request(ruta, { cache: 'reload' })))
+    )
   );
   // No se llama a skipWaiting(): la versión nueva espera a que la app avise y
   // sea el usuario quien decida recargar, para no cambiarle el suelo a mitad

@@ -39,6 +39,7 @@ export const NOVEDADES = [
       'Dentro de cada modalidad, el gallo que la abre va arriba del todo y los demás detrás: el bloque se lee de arriba abajo en el orden en que van saliendo.',
       'Lo mismo en el acta que se comparte, en imagen y en texto, y en la copia de seguridad en texto.',
       'Los marcadores de arriba no se mueven: llevan el total de la batalla, que no va por modalidades.',
+      'Arreglado de paso el motivo de que las actualizaciones llegaran a medias: al instalarse, una versión nueva podía guardarse dentro archivos de la anterior. Ahora los pide siempre a la red.',
     ],
   },
   {
