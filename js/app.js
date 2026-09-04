@@ -620,6 +620,13 @@ function pintarBloques() {
     const paso = scoring.MODALIDADES[tramo.modalidad].paso;
     const abrePareja = (i) => paso > 1 && i > 0 && i % paso === 0;
 
+    // En una modalidad que aún no ha empezado se señala flojito a quién le toca
+    // abrirla, para no tener que adivinarlo antes de llegar a ella.
+    const abre =
+      tramo.id === batalla.cursor.tramo
+        ? null
+        : scoring.quienAbreElTramo(batalla, tramo.id);
+
     const ordinales = bloque.querySelector('.pista__ordinales');
     ajustarHijos(ordinales, ancho, () => clonar(el.tplOrdinal));
     for (let i = 0; i < ancho; i += 1) {
@@ -659,6 +666,7 @@ function pintarBloques() {
 
         cuadro.classList.toggle('voto--pareja', abrePareja(i));
         cuadro.classList.toggle('voto--turno', i === enTurno);
+        cuadro.classList.toggle('voto--abre', i === 0 && batallero.id === abre);
 
         const entero = cuadro.querySelector('.voto__entero');
         const medio = cuadro.querySelector('.voto__medio');

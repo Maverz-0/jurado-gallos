@@ -150,7 +150,16 @@ vistazo sin ir siguiendo los ordinales.
 
 **Cada tramo lo abre un gallo distinto**: el primero lo abre el primero, el
 siguiente lo abre el segundo, y así dando la vuelta. Si un 8×8 lo abrió uno, el
-4×4 que venga después lo abre el otro.
+4×4 que venga después lo abre el otro. En los tramos que quedan por delante se
+marca flojito quién los abrirá.
+
+Eso lo aplican los tres caminos por los que se llega a un tramo: cuando se llena
+el anterior, cuando se añade uno con la batalla empezada, y cuando se toca un
+hueco suyo. Este último hace falta porque un tramo sin número fijo no se llena
+nunca y por tanto no cede el turno solo: tocar un hueco de una modalidad que no
+ha empezado dice «vamos con ésta», no a quién le toca. **Ya dentro de ella**, y
+en cuanto tiene alguna nota, tocar un hueco o un marcador lleva el turno justo
+ahí, que es la manera de saltarse el orden cuando hace falta.
 
 **Cuántas intervenciones** hay se elige aparte, y por debajo del 1 está
 **Indefinido**, que es lo que trae puesto: las intervenciones van saliendo

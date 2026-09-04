@@ -32,6 +32,16 @@ const ESPERA = DIAS_DE_SENAL * 24 * 60 * 60 * 1000;
  */
 export const NOVEDADES = [
   {
+    id: '2026-09-04-abre',
+    fecha: '2026-09-04',
+    titulo: 'Quien abre cada modalidad, de verdad',
+    puntos: [
+      'Entrar en una modalidad que aún no ha empezado lleva al gallo que le toca abrirla. Antes te dejaba en el cuadrito que tocabas, así que con las intervenciones en indefinido siempre acababa abriendo el primero de la lista.',
+      'En las modalidades que quedan por delante se marca flojito quién las abrirá, para no tener que adivinarlo.',
+      'Ya dentro de una modalidad, tocar un hueco sigue llevando el turno justo ahí.',
+    ],
+  },
+  {
     id: '2026-09-04-actualizar',
     fecha: '2026-09-04',
     titulo: 'Las actualizaciones llegan solas',

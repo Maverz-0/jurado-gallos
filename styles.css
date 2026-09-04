@@ -1589,6 +1589,12 @@ button {
   cursor: default;
 }
 
+/* Quien abre una modalidad a la que todavía no se ha llegado. Va flojo a
+   propósito: dice quién irá primero, no que le toque ya. */
+.voto--abre {
+  border-color: color-mix(in srgb, var(--azul) 35%, transparent);
+}
+
 /* La casilla donde va a caer la siguiente nota. La fila entera dice de quién
    es el turno; ésta dice además por dónde va. */
 .voto--turno {

@@ -393,6 +393,31 @@ export function deshacer(batalla) {
   };
 }
 
+/**
+ * Quién abre un tramo en el que todavía no ha puntuado nadie, o null si ya
+ * está empezado: entonces no hay nada que decidir, manda lo que ya hay.
+ */
+export function quienAbreElTramo(batalla, idTramo) {
+  const iTramo = batalla.tramos.findIndex((tramo) => tramo.id === idTramo);
+  if (iTramo < 0) return null;
+
+  const empezado = batalla.puntuaciones.some(
+    (puntuacion) => puntuacion.tramo === idTramo
+  );
+  if (empezado) return null;
+
+  return batalla.batalleros[quienAbre(batalla, iTramo)]?.id ?? null;
+}
+
+/**
+ * Lleva el cursor a un sitio concreto, que es lo que hace tocar un hueco.
+ *
+ * Entrar en una modalidad que no ha empezado lleva a quien le toca abrirla: el
+ * cuadrito que se toque ahí sólo dice «vamos con ésta», no a quién le toca, y
+ * sin esto una modalidad sin número fijo de intervenciones no cedería el turno
+ * nunca y siempre acabaría abriéndola el primero de la lista. Ya dentro, y en
+ * cuanto tiene alguna nota, el cuadrito manda.
+ */
 export function moverCursor(batalla, idTramo, idBatallero) {
   const tramo = tramoDe(batalla, idTramo);
   const existe = batalla.batalleros.some(
@@ -400,9 +425,12 @@ export function moverCursor(batalla, idTramo, idBatallero) {
   );
   if (!tramo || !existe) return batalla;
 
+  const entrando = idTramo !== batalla.cursor.tramo;
+  const abre = entrando ? quienAbreElTramo(batalla, idTramo) : null;
+
   return {
     ...batalla,
-    cursor: { tramo: idTramo, batallero: idBatallero },
+    cursor: { tramo: idTramo, batallero: abre ?? idBatallero },
     marcada: null,
   };
 }
