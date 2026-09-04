@@ -32,6 +32,16 @@ const ESPERA = DIAS_DE_SENAL * 24 * 60 * 60 * 1000;
  */
 export const NOVEDADES = [
   {
+    id: '2026-09-04-actualizar',
+    fecha: '2026-09-04',
+    titulo: 'Las actualizaciones llegan solas',
+    puntos: [
+      'La app pregunta si hay versión nueva cada vez que vuelves a ella, no sólo al recargarla. Instalada en el móvil casi nunca se recargaba, y una versión nueva podía tardar días en aparecer.',
+      'Al añadir una modalidad sin número fijo de intervenciones, el turno se muda a ella: antes se quedaba en la anterior, que al no llenarse nunca no cedía el turno, y no se veía que la abriera el gallo siguiente.',
+      'Al final de esta pantalla se ve **qué versión tienes puesta**, para salir de dudas cuando algo parezca no haberse actualizado.',
+    ],
+  },
+  {
     id: '2026-09-04-novedades',
     fecha: '2026-09-04',
     titulo: 'Notas de parche',
@@ -159,6 +169,7 @@ export function hayQueAvisar({ ultima, leida, desde, ahora }) {
 
 export function crearNovedades({ empujar, sacar }) {
   const el = {
+    version: $('version-app'),
     tarjeta: $('tarjeta-novedades'),
     boton: $('btn-novedades'),
     senal: $('senal-novedades'),
@@ -266,6 +277,26 @@ export function crearNovedades({ empujar, sacar }) {
   el.boton.addEventListener('click', abrir);
   el.cerrar.addEventListener('click', sacar);
   refrescarSenal();
+  preguntarLaVersion(el.version);
+}
+
+/**
+ * Qué versión está sirviendo el service worker.
+ *
+ * Se la pregunta a él y no se apunta aquí, que sería otro número más que
+ * mantener a mano y acabaría diciendo una cosa distinta. Sin service worker
+ * —o sin haber tomado todavía el control— no hay versión que enseñar.
+ */
+function preguntarLaVersion(nodo) {
+  const trabajador = navigator.serviceWorker?.controller;
+  if (!trabajador) return;
+
+  navigator.serviceWorker.addEventListener('message', (evento) => {
+    if (evento.data?.tipo !== 'VERSION') return;
+    poner(nodo, `Versión instalada: ${evento.data.version}`);
+  });
+
+  trabajador.postMessage({ tipo: 'QUE_VERSION' });
 }
 
 function leer(clave) {

@@ -1363,6 +1363,9 @@ document.addEventListener('keydown', (evento) => {
 
 // ── Versiones nuevas ───────────────────────────────────────────────────────
 
+/** Lo mínimo entre dos preguntas al servidor por una versión nueva. */
+const CADA_CUANTO_SE_MIRA = 60 * 1000;
+
 /**
  * El service worker nuevo se queda esperando en vez de tomar el relevo solo:
  * recargar a mitad de una batalla la perdería. En cuanto hay uno esperando se
@@ -1382,19 +1385,60 @@ function vigilarVersiones() {
   navigator.serviceWorker
     .register('./sw.js')
     .then((registro) => {
-      // Puede haber quedado uno esperando de una visita anterior.
-      anunciarSiEspera(registro.waiting);
+      // Puede haber quedado uno esperando, o a medio instalar, de otra visita.
+      vigilarAlEntrante(registro.waiting);
+      vigilarAlEntrante(registro.installing);
+      registro.addEventListener('updatefound', () =>
+        vigilarAlEntrante(registro.installing)
+      );
 
-      registro.addEventListener('updatefound', () => {
-        const entrante = registro.installing;
-        entrante?.addEventListener('statechange', () => {
-          if (entrante.state === 'installed') anunciarSiEspera(entrante);
-        });
-      });
+      mirarAlVolver(registro);
     })
     .catch((error) => {
       console.error('No se ha podido registrar el service worker:', error);
     });
+}
+
+/**
+ * Pregunta por una versión nueva cada vez que se vuelve a la app.
+ *
+ * Instalada en el móvil no se recarga casi nunca: se deja abierta y se vuelve a
+ * ella al día siguiente sin que la página llegue a cargarse otra vez. Si sólo
+ * se mirase al registrar, una versión nueva podría tardar semanas en salir.
+ */
+function mirarAlVolver(registro) {
+  let ultimaVez = Date.now();
+
+  const mirar = () => {
+    if (document.visibilityState !== 'visible') return;
+    if (Date.now() - ultimaVez < CADA_CUANTO_SE_MIRA) return;
+
+    ultimaVez = Date.now();
+    registro.update().catch(() => {
+      // Sin red no hay nada que mirar. Se volverá a intentar al volver.
+    });
+  };
+
+  document.addEventListener('visibilitychange', mirar);
+  window.addEventListener('pageshow', mirar);
+}
+
+/**
+ * Un trabajador entrante avisa en cuanto queda instalado. Se mira también el
+ * estado de entrada: si le dio tiempo a instalarse antes de que llegásemos, el
+ * `statechange` ya no volvería a saltar y el aviso no saldría nunca.
+ */
+function vigilarAlEntrante(trabajador) {
+  if (!trabajador) return;
+
+  if (trabajador.state === 'installed') {
+    anunciarSiEspera(trabajador);
+    return;
+  }
+
+  trabajador.addEventListener('statechange', () => {
+    if (trabajador.state === 'installed') anunciarSiEspera(trabajador);
+  });
 }
 
 function anunciarSiEspera(trabajador) {

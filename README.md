@@ -49,6 +49,22 @@ Dos cosas que hay que respetar para no romper la versión publicada:
 
 El archivo `.nojekyll` de la raíz evita que Pages procese el sitio con Jekyll.
 
+### Cómo llega una versión nueva
+
+El service worker nuevo se instala y **se queda esperando** en vez de tomar el
+relevo solo: recargar a mitad de una batalla la perdería. Mientras espera, el
+inicio enseña el aviso, y el relevo lo pide el usuario con «Actualizar».
+
+Lo que hace que llegue es **preguntar cada vez que se vuelve a la app**, no sólo
+al cargarla. Instalada en el móvil casi nunca se recarga: se deja abierta y se
+vuelve a ella al día siguiente sin que la página se cargue otra vez, de modo que
+mirar sólo al registrar dejaba la versión nueva sin descubrir durante días. Se
+mira en `visibilitychange` y en `pageshow`, como mucho una vez por minuto.
+
+Al final de **Novedades** se ve qué versión está puesta. Se la pregunta al
+service worker por `postMessage`, no se apunta a mano en otro sitio: sería otro
+número que mantener y acabaría diciendo una cosa distinta.
+
 ## Iconos
 
 Se generan con un script; sólo hay que volver a ejecutarlo si se cambia el

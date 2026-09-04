@@ -423,17 +423,29 @@ export function desmarcar(batalla) {
  * Añade un tramo al final, ya empezada la batalla. Si el cursor estaba parado
  * porque no quedaba hueco, se lleva al sitio recién abierto.
  */
+/**
+ * Añade un tramo al final y decide si el turno se muda a él.
+ *
+ * Con número fijo de intervenciones se sigue donde se estaba: el cursor saltará
+ * solo en cuanto ese tramo se llene. Pero un tramo sin número no se llena
+ * nunca, así que nunca cedería el turno por su cuenta: ahí, añadir otro es la
+ * señal de que ya se ha pasado a él. Y quien lo abre es el que le toque por el
+ * sitio que ocupa, como en cualquier otro.
+ */
 export function anadirTramo(batalla, tramo) {
   const conElTramo = {
     ...batalla,
     tramos: [...batalla.tramos, crearTramo(tramo)],
   };
 
-  if (puedeAnotar(conElTramo)) return conElTramo;
+  const enCurso = tramoDe(conElTramo, conElTramo.cursor.tramo);
+  if (enCurso?.intervenciones != null && puedeAnotar(conElTramo)) return conElTramo;
+
+  const abre = quienEmpiezaEn(conElTramo, conElTramo.tramos.length - 1);
 
   return {
     ...conElTramo,
-    cursor: primeraPosicionLibre(conElTramo) ?? conElTramo.cursor,
+    cursor: abre ?? primeraPosicionLibre(conElTramo) ?? conElTramo.cursor,
     marcada: null,
   };
 }

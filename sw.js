@@ -6,7 +6,7 @@
  * desde la caché y no verán el cambio nunca.
  */
 
-const CACHE = 'jurado-gallos-v14';
+const CACHE = 'jurado-gallos-v15';
 
 /** Todo lo que hace falta para arrancar. Rutas relativas: esto vive en un
     subdirectorio de github.io, donde una ruta absoluta se saldría del sitio. */
@@ -88,7 +88,13 @@ async function responder(peticion) {
   }
 }
 
-/** La app pide el relevo cuando el usuario pulsa «Actualizar». */
 self.addEventListener('message', (evento) => {
+  // La app pide el relevo cuando el usuario pulsa «Actualizar».
   if (evento.data?.tipo === 'ACTIVAR_YA') self.skipWaiting();
+
+  // Y pregunta qué versión está sirviendo, para poder enseñarla en Novedades:
+  // es la forma de salir de dudas cuando algo «no se ha actualizado».
+  if (evento.data?.tipo === 'QUE_VERSION') {
+    evento.source?.postMessage({ tipo: 'VERSION', version: CACHE });
+  }
 });
