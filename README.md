@@ -94,9 +94,11 @@ Se preparan en **Batalla**: entre 2 y 10, reordenables arrastrando por el
 agarre de la derecha. El orden que quede es el turno de intervención. Los
 nombres en blanco se llaman «Gallo A», «Gallo B»…
 
-Puntuando, el gallo en turno se ve con el cuadro relleno de azul y su fila
-teñida. Tocar un marcador lleva el cursor a ese gallo; tocar un cuadrito ya
-puesto lo marca para sustituirlo con la siguiente tecla.
+Puntuando, el gallo en turno se ve con el marcador relleno de azul y su fila
+teñida, y además se resalta **la casilla exacta** donde va a caer la siguiente
+nota. Tocar un marcador lleva el cursor a ese gallo; tocar un cuadrito ya
+puesto lo marca para sustituirlo con la siguiente tecla, y mientras hay uno
+marcado no se resalta ninguna casilla: la siguiente nota va a ese.
 
 ## Tramos y modalidades
 
@@ -114,9 +116,14 @@ La modalidad dice **en qué orden se pasa de un gallo a otro**, y nada más:
 En un 8×8 los cuadritos se separan en parejas, para poder contarlas de un
 vistazo sin ir siguiendo los ordinales.
 
+**Cada tramo lo abre un gallo distinto**: el primero lo abre el primero, el
+siguiente lo abre el segundo, y así dando la vuelta. Si un 8×8 lo abrió uno, el
+4×4 que venga después lo abre el otro.
+
 **Cuántas intervenciones** hay se elige aparte, y por debajo del 1 está
 **Indefinido**, que es lo que trae puesto: las intervenciones van saliendo
-según se puntúa y el tramo no se llena nunca. Con un número fijo, en cambio,
+según se puntúa y el tramo no se llena nunca. Un tramo así enseña siempre una
+casilla vacía de más, que es el sitio de la siguiente nota. Con un número fijo, en cambio,
 cada gallo tiene su cupo, y cuando el tramo se llena el cursor salta solo al
 siguiente. Si no queda hueco en ninguno, el teclado se apaga hasta que se añada
 otro tramo o se termine.

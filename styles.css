@@ -1481,6 +1481,13 @@ button {
   cursor: default;
 }
 
+/* La casilla donde va a caer la siguiente nota. La fila entera dice de quién
+   es el turno; ésta dice además por dónde va. */
+.voto--turno {
+  background: color-mix(in srgb, var(--azul) 30%, transparent);
+  border-color: color-mix(in srgb, var(--azul) 55%, transparent);
+}
+
 /* ── Teclado numérico ───────────────────────────────────────────────────── */
 
 /* Las columnas y el alto los pone app.js: con nota máxima 10 hay doce teclas

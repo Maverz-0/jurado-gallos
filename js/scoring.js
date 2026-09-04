@@ -220,16 +220,22 @@ function sumarTramos(batalla, idBatallero, cuenta) {
 
 /**
  * Cuántas columnas tiene un tramo: las que tenga fijadas o, si no las tiene,
- * las que se lleven metidas.
+ * las que se lleven metidas y una más.
+ *
+ * Esa de más es el sitio de la siguiente nota. Sin ella, cuando todos van
+ * igualados no habría dónde señalar a quién le toca, ni dónde tocar para
+ * llevarle el cursor.
  */
 export function anchoDeTramo(batalla, tramo) {
   if (tramo.intervenciones != null) return tramo.intervenciones;
 
-  return batalla.batalleros.reduce(
+  const metidas = batalla.batalleros.reduce(
     (maximo, batallero) =>
       Math.max(maximo, cuantasNotas(batalla, tramo.id, batallero.id)),
     0
   );
+
+  return metidas + 1;
 }
 
 /** En un tramo de número fijo, cada gallo tiene un cupo que no puede pasar. */
@@ -255,6 +261,30 @@ export function puedeAnotar(batalla) {
 // ── Movimiento del cursor ──────────────────────────────────────────────────
 
 /**
+ * Con quién abre un tramo: el primero abre el primer gallo, el siguiente abre
+ * el segundo, y así dando la vuelta. Si un 8×8 lo abre uno, el 4×4 que venga
+ * después lo abre el otro, que es como se hace.
+ */
+function quienAbre(batalla, iTramo) {
+  return iTramo % batalla.batalleros.length;
+}
+
+/** El primer gallo con hueco de un tramo, empezando por el que le toca abrir. */
+function quienEmpiezaEn(batalla, iTramo) {
+  const cuantos = batalla.batalleros.length;
+  const abre = quienAbre(batalla, iTramo);
+
+  for (let salto = 0; salto < cuantos; salto += 1) {
+    const batallero = batalla.batalleros[(abre + salto) % cuantos];
+    if (tieneCupo(batalla, batalla.tramos[iTramo], batallero.id)) {
+      return { tramo: batalla.tramos[iTramo].id, batallero: batallero.id };
+    }
+  }
+
+  return null;
+}
+
+/**
  * El siguiente sitio con hueco: primero el resto del tramo en curso, dando la
  * vuelta por los gallos, y si el tramo se ha llenado, el tramo siguiente.
  */
@@ -275,11 +305,8 @@ function siguientePosicion(batalla, cursor) {
   }
 
   for (let t = iTramo + 1; t < batalla.tramos.length; t += 1) {
-    for (const batallero of batalla.batalleros) {
-      if (tieneCupo(batalla, batalla.tramos[t], batallero.id)) {
-        return { tramo: batalla.tramos[t].id, batallero: batallero.id };
-      }
-    }
+    const sitio = quienEmpiezaEn(batalla, t);
+    if (sitio) return sitio;
   }
 
   return null;
@@ -287,12 +314,9 @@ function siguientePosicion(batalla, cursor) {
 
 /** El primer hueco de toda la batalla, mirando desde el principio. */
 function primeraPosicionLibre(batalla) {
-  for (const tramo of batalla.tramos) {
-    for (const batallero of batalla.batalleros) {
-      if (tieneCupo(batalla, tramo, batallero.id)) {
-        return { tramo: tramo.id, batallero: batallero.id };
-      }
-    }
+  for (let t = 0; t < batalla.tramos.length; t += 1) {
+    const sitio = quienEmpiezaEn(batalla, t);
+    if (sitio) return sitio;
   }
   return null;
 }

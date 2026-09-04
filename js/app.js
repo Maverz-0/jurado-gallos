@@ -648,11 +648,16 @@ function pintarBloques() {
 
       const votos = scoring.votosDe(batalla, tramo.id, batallero.id);
 
+      // La casilla exacta donde caería la siguiente nota. Con un voto marcado
+      // para sustituir no se señala ninguna: la siguiente iría a ese.
+      const enTurno = activa && batalla.marcada === null ? votos.length : -1;
+
       for (let i = 0; i < ancho; i += 1) {
         const cuadro = fila.children[i];
         const voto = votos[i];
 
         cuadro.classList.toggle('voto--pareja', abrePareja(i));
+        cuadro.classList.toggle('voto--turno', i === enTurno);
 
         const entero = cuadro.querySelector('.voto__entero');
         const medio = cuadro.querySelector('.voto__medio');
