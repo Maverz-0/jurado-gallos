@@ -61,7 +61,7 @@ python tools/generar-iconos.py   # necesita Pillow
 ## Cómo está montado
 
 ```
-index.html      las diez vistas
+index.html      las once vistas
 styles.css      sistema de diseño iOS, con todos los valores en :root
 sw.js           precacheo y aviso de versión nueva
 manifest.json
@@ -70,6 +70,7 @@ js/
   scoring.js    lógica de la batalla en curso: pura, sin DOM y testeable
   storage.js    la única parte que conoce IndexedDB
   history.js    resultados anteriores
+  news.js       las notas de parche y su señal
   transfer.js   exportar e importar
   share.js      el acta y la clasificación, en imagen o en texto
   compat.js     traducción de los esquemas anteriores
@@ -84,9 +85,24 @@ almacenamiento por uno en la nube es reescribir ese archivo y nada más.
 
 ## El inicio
 
-Sólo cuatro cosas: **Batalla**, **Filtros**, **Resultados anteriores** y **Copia
-de seguridad**. Cada modo abre su propia pantalla de preparación, así que el
+**Batalla**, **Filtros**, **Resultados anteriores**, **Copia de seguridad** y
+**Novedades**. Cada modo abre su propia pantalla de preparación, así que el
 inicio no enseña nunca opciones de algo que todavía no has elegido.
+
+## Novedades
+
+Las notas de parche, escritas a mano en `news.js`, de lo más nuevo a lo más
+viejo. Cada entrada lleva título, fecha y, al desplegarla, lo que cambió.
+
+**Al añadir una entrada arriba, la señal se enciende sola** para todo el que
+abra la app: lo que decide si hay aviso es el `id` de la primera comparado con
+el que el usuario dio por leído. Ese `id` no se toca una vez publicado.
+
+La señal —exclamación y borde naranja alrededor de la sección— se apaga de dos
+maneras: entrando a leerla, o sola a los tres días de la primera vez que se
+abrió la app con ella. Lo segundo hace falta porque quien no piense entrar
+tampoco tiene por qué cargar con la exclamación para siempre. Las dos cosas se
+recuerdan en `localStorage`: no son datos de batallas.
 
 ## Gallos
 

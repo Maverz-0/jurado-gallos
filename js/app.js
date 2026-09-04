@@ -17,6 +17,7 @@ import {
   olvidarBorrador,
 } from './storage.js';
 import { crearHistorial } from './history.js';
+import { crearNovedades } from './news.js';
 import { crearCopia } from './transfer.js';
 import { compartirImagen, compartirTexto } from './share.js';
 import { crearVistaFiltros } from './filters-view.js';
@@ -919,6 +920,9 @@ const historial = crearHistorial({
   abrirFiltros: (registro) => vistaFiltros.abrirGuardados(registro),
 });
 const copia = crearCopia({ empujar });
+
+// Se cablea sola: enciende su señal y abre su vista sin que nadie la llame.
+crearNovedades({ empujar, sacar });
 const vistaFiltros = crearVistaFiltros({
   empujar,
   sacar,

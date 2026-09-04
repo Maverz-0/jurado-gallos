@@ -32,6 +32,9 @@
   --texto-titulo-seccion: 22px;
   --texto-cuerpo: 17px;
   --texto-nota: 13px;
+  /* Para lo que se lee seguido, como las notas de parche: la nota se queda
+     corta y el cuerpo se hace grande. */
+  --texto-lectura: 15px;
   --texto-menudo: 11px;
   --texto-marcador: clamp(44px, 13vw, 64px);
 
@@ -519,6 +522,111 @@ button {
 
 .batallero--apartada {
   transition: transform 200ms var(--curva);
+}
+
+/* ── Novedades ──────────────────────────────────────────────────────────── */
+
+/* Con algo sin leer, la tarjeta se enciende del color de la exclamación. Es
+   un borde por dentro, para que la tarjeta no cambie de tamaño al apagarse. */
+.tarjeta--avisa {
+  box-shadow: inset 0 0 0 1.5px var(--naranja),
+    0 0 0 4px color-mix(in srgb, var(--naranja) 14%, transparent);
+}
+
+.senal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--naranja);
+  color: #fff;
+  font-size: var(--texto-nota);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.novedad + .novedad {
+  margin-top: var(--e2);
+}
+
+.novedad__cabecera {
+  width: 100%;
+  align-items: flex-start;
+  padding-top: var(--e3);
+  padding-bottom: var(--e3);
+}
+
+.novedad__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.novedad__titulo {
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.novedad__fecha {
+  font-size: var(--texto-nota);
+  color: var(--texto-secundario);
+}
+
+/* El chevron gira al desplegar, como las listas del sistema. */
+.novedad__flecha {
+  margin-top: 5px;
+  transition: transform var(--transicion-vista) var(--curva);
+}
+
+.novedad__cabecera--abierta .novedad__flecha {
+  transform: rotate(90deg);
+}
+
+.novedad__puntos {
+  margin: 0;
+  padding: 0 var(--e4) var(--e4) calc(var(--e4) + var(--e3));
+  list-style: none;
+}
+
+.novedad__punto {
+  position: relative;
+  font-size: var(--texto-lectura);
+  line-height: 1.45;
+  color: var(--texto-secundario);
+}
+
+.novedad__punto + .novedad__punto {
+  margin-top: var(--e2);
+}
+
+/* La viñeta, puesta a mano para poder colocarla a la altura de la primera
+   línea y no del centro del párrafo. */
+.novedad__punto::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--e3) * -1);
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--azul);
+}
+
+.novedad__punto strong {
+  font-weight: 600;
+  color: var(--texto);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .novedad__flecha {
+    transition: none;
+  }
 }
 
 /* ── Menú del inicio ────────────────────────────────────────────────────── */

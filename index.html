@@ -100,6 +100,21 @@
               </button>
             </div>
           </div>
+
+          <!-- Aparte, en su propia tarjeta: así el borde puede encenderse
+               entero cuando hay algo sin leer. -->
+          <div class="grupo">
+            <div class="tarjeta" id="tarjeta-novedades">
+              <button class="fila fila--enlace" type="button" id="btn-novedades">
+                <span class="fila__titulo fila__titulo--ancho">Novedades</span>
+                <span class="senal" id="senal-novedades" role="img" aria-label="Hay novedades sin leer" hidden>!</span>
+                <svg class="chevron" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                  <path d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <p class="grupo__pie">Lo que ha ido cambiando en la app.</p>
+          </div>
         </div>
       </section>
 
@@ -647,6 +662,27 @@
         </div>
       </section>
       <!-- ────────────────── Copia de seguridad ─────────────────────- -->
+      <!-- ────────────────────────── Novedades ────────────────────────── -->
+      <section class="vista" id="vista-novedades" aria-label="Novedades" inert>
+        <header class="barra">
+          <div class="barra__fila">
+            <button class="barra__accion barra__accion--atras" type="button" id="btn-cerrar-novedades">
+              <svg viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+                <path d="M10 1 1.6 9.3a1 1 0 0 0 0 1.4L10 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Inicio
+            </button>
+            <h2 class="barra__titulo barra__titulo--oculto">Novedades</h2>
+            <span class="barra__accion" aria-hidden="true"></span>
+          </div>
+          <h1 class="titulo-grande">Novedades</h1>
+        </header>
+
+        <div class="vista__cuerpo">
+          <div class="grupo" id="lista-novedades"></div>
+        </div>
+      </section>
+
       <section class="vista" id="vista-copia" aria-label="Copia de seguridad" inert>
         <header class="barra">
           <div class="barra__fila">
@@ -888,6 +924,25 @@
           </div>
         </div>
       </div>
+    </template>
+
+    <template id="tpl-novedad">
+      <div class="tarjeta novedad">
+        <button class="fila fila--enlace novedad__cabecera" type="button" aria-expanded="false">
+          <span class="novedad__texto">
+            <span class="novedad__titulo"></span>
+            <span class="novedad__fecha tabular"></span>
+          </span>
+          <svg class="chevron novedad__flecha" viewBox="0 0 12 20" aria-hidden="true" focusable="false">
+            <path d="m2 1 8.4 8.3a1 1 0 0 1 0 1.4L2 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <ul class="novedad__puntos" hidden></ul>
+      </div>
+    </template>
+
+    <template id="tpl-novedad-punto">
+      <li class="novedad__punto"></li>
     </template>
 
     <template id="tpl-marcador">
